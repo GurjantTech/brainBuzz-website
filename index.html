@@ -4,32 +4,209 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BrainBuzz - Coming Soon</title>
+
+  <title>BrainBuzz - Daily Brain Challenges</title>
+
+  <meta
+    name="description"
+    content="Give your brain a daily workout with BrainBuzz! Play fun puzzles, memory games, quick maths and logic challenges."
+  >
+
+  <meta name="theme-color" content="#080B52">
+
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
+      padding: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: Arial, Helvetica, sans-serif;
       text-align: center;
-      font-family: Arial, sans-serif;
-      color: white;
-      background: linear-gradient(135deg, #080B52, #2010C0, #6D20FF);
+      color: #ffffff;
+      background: linear-gradient(
+        135deg,
+        #080B52 0%,
+        #2010C0 50%,
+        #6D20FF 100%
+      );
     }
-    .content { padding: 24px; }
-    .brain { font-size: 70px; }
-    h1 { font-size: 48px; }
-    p { font-size: 18px; line-height: 1.6; }
+
+    .container {
+      width: 100%;
+      max-width: 650px;
+      padding: 40px 24px;
+    }
+
+    .brain-icon {
+      font-size: 76px;
+      line-height: 1.2;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(40px, 8vw, 60px);
+      font-weight: 800;
+      letter-spacing: -1.5px;
+    }
+
+    .tagline {
+      margin: 0 0 14px;
+      font-size: clamp(20px, 4vw, 26px);
+      font-weight: 600;
+    }
+
+    .description {
+      max-width: 480px;
+      margin: 0 auto;
+      color: #E9E6FF;
+      font-size: 17px;
+      line-height: 1.8;
+    }
+
+    .playstore-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 30px;
+      padding: 16px 26px;
+      min-height: 54px;
+      border: 2px solid transparent;
+      border-radius: 14px;
+      background: #00D7C4;
+      color: #080B52;
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+    }
+
+    .playstore-button:hover {
+      transform: translateY(-3px);
+      background: #42F0DE;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+    }
+
+    .playstore-button:focus-visible {
+      outline: 3px solid #ffffff;
+      outline-offset: 4px;
+    }
+
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 38px;
+    }
+
+    .feature {
+      padding: 10px 15px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.09);
+      color: #F3F0FF;
+      font-size: 14px;
+    }
+
+    footer {
+      margin-top: 48px;
+      color: #D3CEFF;
+      font-size: 13px;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 28px 8px;
+      }
+
+      .brain-icon {
+        font-size: 64px;
+      }
+
+      .playstore-button {
+        width: 100%;
+        max-width: 320px;
+        padding: 15px 18px;
+      }
+
+      .features {
+        gap: 8px;
+      }
+
+      .feature {
+        font-size: 13px;
+        padding: 9px 12px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
+
 <body>
-  <div class="content">
-    <div class="brain">🧠</div>
+  <main class="container">
+
+    <div class="brain-icon" aria-hidden="true">🧠</div>
+
     <h1>BrainBuzz</h1>
-    <p>Your daily dose of brain power!</p>
-    <p>Daily puzzles, memory games and logic challenges.</p>
-    <p>🚀 Official website coming soon!</p>
-  </div>
+
+    <p class="tagline">
+      Your Daily Dose of Brain Power!
+    </p>
+
+    <p class="description">
+      Challenge your mind with fun puzzles, memory games,
+      quick maths and exciting logic challenges.
+      Take a few minutes every day to test your skills
+      and give your brain a workout!
+    </p>
+
+    <a
+      class="playstore-button"
+      href="https://play.google.com/store/apps/details?id=com.app.dailybrainchallenge"
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Get BrainBuzz on Google Play"
+    >
+      <span aria-hidden="true">▶</span>
+      Get BrainBuzz on Google Play
+    </a>
+
+    <section class="features" aria-label="BrainBuzz features">
+      <span class="feature">🧩 Fun Puzzles</span>
+      <span class="feature">🧠 Memory Games</span>
+      <span class="feature">⚡ Quick Maths</span>
+      <span class="feature">🎯 Daily Challenges</span>
+    </section>
+
+    <footer>
+      © <span id="year">2026</span> BrainBuzz. All rights reserved.
+    </footer>
+
+  </main>
+
+  <script>
+    document.getElementById("year").textContent =
+      new Date().getFullYear();
+  </script>
 </body>
 </html>
