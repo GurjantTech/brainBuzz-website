@@ -35,7 +35,6 @@ assets/
 tools/build.js        Build + sitemap/robots/manifest/CNAME + broken-link and missing-icon check
 tools/serve.js        Local preview server
 tests/                parity.test.js (+ Kotlin reference fixtures), e2e.test.js
-.github/workflows/    GitHub Pages deployment
 ```
 
 ## How the games match the app
@@ -71,8 +70,8 @@ All CTAs use `playUrl(placement)` in `assets/js/lib/site.js`, which adds `&refer
 
 ## Deploy to brainbuzzgame.com (GitHub Pages)
 
-1. Create a GitHub repository (e.g. `brainbuzzgame-web`) and push this `site/` folder as its root, on the `main` branch.
-2. In the repo, open **Settings → Pages → Build and deployment** and set **Source: GitHub Actions**. The included workflow tests, builds and publishes `dist/` on every push.
+1. The repository root is the `BrainBuzzWebsite/` folder; the workflow lives at its root in `.github/workflows/deploy.yml` (GitHub ignores workflows inside subfolders) and builds `site/`.
+2. In the repo, open **Settings → Pages → Build and deployment** and set **Source: GitHub Actions** (not "Deploy from a branch", which would serve the files as-is without building). The workflow tests, builds and publishes `site/dist/` on every push to `main`.
 3. In **Settings → Pages → Custom domain**, enter `brainbuzzgame.com` and save. The build also writes a `CNAME` file.
 4. At your domain registrar, set these DNS records:
 

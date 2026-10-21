@@ -1,4 +1,4 @@
-# Builds the site and publishes dist/ to GitHub Pages on every push to main.
+# Builds site/ and publishes site/dist to GitHub Pages on every push to main.
 # One-time setup: repo Settings → Pages → Build and deployment → Source: "GitHub Actions".
 name: Deploy to GitHub Pages
 
@@ -28,10 +28,12 @@ jobs:
         with:
           node-version: 20
       - run: node tests/parity.test.js
+        working-directory: site
       - run: node tools/build.js
+        working-directory: site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site/dist
       - id: deployment
         uses: actions/deploy-pages@v4
