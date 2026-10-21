@@ -1,4 +1,4 @@
-/** Site chrome: theme toggle, mobile menu, header shadow, reveal-on-scroll, game cards and the Daily card. */
+/** Site chrome: theme toggle, mobile menu, header shadow, reveal-on-scroll, game cards, the Daily card and ad units. */
 import { topScore, dailyResult } from './lib/store.js';
 import { formatNumber, untilMidnight, icon } from './lib/dom.js';
 import { todayEpochDay } from './engine/quiz.js';
@@ -114,3 +114,9 @@ if (dailyCards.length) {
     setInterval(tick, 1000);
   }
 }
+
+// AdSense: request each manual unit once per page load, never again. Ads are optional; nothing waits on them,
+// and if adsbygoogle.js is blocked the loader adds html.ads-off, which hides the empty slots.
+document.querySelectorAll('ins.adsbygoogle:not([data-adsbygoogle-status])').forEach(() => {
+  try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { /* ads unavailable */ }
+});

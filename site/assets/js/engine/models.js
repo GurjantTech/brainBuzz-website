@@ -40,7 +40,7 @@ const minutes = (s) => `${Math.floor(s / 60)} minutes for all of them${s % 60 ? 
 
 /**
  * `hints` is the web allowance: the same number of hints the app offers per game
- * (its free hints plus its optional video hints), all free here because the site has no ads.
+ * (its free hints plus its optional video hints), all free here because the site has no rewarded videos.
  */
 export const GAMES = [
   {

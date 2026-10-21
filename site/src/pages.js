@@ -1,5 +1,5 @@
 /** Every page on the site. The build renders each one through layout.js. */
-import { esc, icon, playBadge, playButton } from './layout.js';
+import { esc, icon, playBadge, playButton, adSlot, AD_SLOTS } from './layout.js';
 import { GAME_COPY } from './content.js';
 import { GAMES, LIBRARY, Category, DIFFICULTIES } from '../assets/js/engine/models.js';
 import {
@@ -80,7 +80,7 @@ const appLd = {
 };
 
 const FAQ = [
-  ['Is BrainBuzz free?', 'Yes. The browser games on this site are free to play, with no ads and no sign-up. The BrainBuzz Android app is also free to download from Google Play.'],
+  ['Is BrainBuzz free?', 'Yes. The browser games on this site are free to play, with no sign-up. The website shows some ads to help keep it free. The BrainBuzz Android app is also free to download from Google Play.'],
   ['Do my browser scores sync with the Android app?', 'No. Best scores you set here are saved only in this browser on this device. The Android app keeps its own progress on your phone, including XP, levels, streaks and achievements. The website and the app don’t share any data.'],
   ['Are these the same games as in the app?', 'Yes. It’s the same seven games plus the Daily Challenge, with the same rules, difficulty levels and scoring. On any given date the Daily Challenge has the same 12 puzzles as the app.'],
   ['What extra do I get in the Android app?', 'The app tracks your progress over time: XP and levels, daily streaks with a training calendar, three daily missions, 20 achievements, detailed stats and an optional daily reminder. In the app, Easy is always free and Medium and Hard unlock by watching a short optional video. On this website every level is free.'],
@@ -177,11 +177,11 @@ ${appPromo('home_promo')}
     <div class="card feature reveal" style="--c:#6c4bf4"><span class="fi">${icon('apps')}</span><h3>Real variety</h3><p>Memory, logic, numbers, visual and word puzzles, all in one place.</p></div>
     <div class="card feature reveal" style="--c:#16825a"><span class="fi">${icon('trending_up')}</span><h3>Levels that matter</h3><p>Hard brings ordered sequences, decoy pipes, hidden clues and subtler differences.</p></div>
     <div class="card feature reveal" style="--c:#0fb5a6"><span class="fi">${icon('calendar_month')}</span><h3>Fresh every day</h3><p>The Daily Challenge changes at midnight, your time, so there’s always something new.</p></div>
-    <div class="card feature reveal" style="--c:#c73565"><span class="fi">${icon('shield')}</span><h3>Private by design</h3><p>No sign-up, no ads and no tracking on this website.</p></div>
+    <div class="card feature reveal" style="--c:#c73565"><span class="fi">${icon('shield')}</span><h3>No sign-up</h3><p>No accounts or personal details. Your best scores stay in this browser.</p></div>
     <div class="card feature reveal" style="--c:#4ea8ff"><span class="fi">${icon('devices')}</span><h3>Plays anywhere</h3><p>Phone, tablet or desktop, with touch, mouse or keyboard.</p></div>
   </div>
 </div></section>
-
+${adSlot(AD_SLOTS.home)}
 ${faqSection()}
 ${ctaBand('home_cta')}`;
   const faqLd = {
@@ -281,6 +281,7 @@ function gamePage(g) {
     <ul>${copy.tips.map((t) => `<li>${t}</li>`).join('')}</ul>
   </div>
 </div></section>
+${adSlot(AD_SLOTS.game)}
 <section class="section-tight"><div class="wrap">
   <div class="section-head reveal" style="margin-bottom:24px"><h2>More brain games</h2></div>
   <div class="game-grid">${others.map((o) => gameCard(o)).join('')}</div>
@@ -342,7 +343,7 @@ function aboutPage() {
     <li><strong>Every game explains itself.</strong> Each one starts with a short how-to and shows the rule or the right answer when you miss, so you learn as you go.</li>
     <li><strong>Nothing relies on colour alone.</strong> Right and wrong answers, lit tiles and connected pipes also use icons, outlines or dots.</li>
     <li><strong>Mistakes ease off, they don’t pile on.</strong> In Memory Matrix a miss makes the next round shorter; in Quick Math Rush the sums get easier after two misses.</li>
-    <li><strong>Private by design.</strong> No accounts. This website has no ads, analytics or cookies.</li>
+    <li><strong>No accounts.</strong> Your scores stay in your browser. The website is supported by ads from Google; the <a href="/privacy/">Privacy Policy</a> explains how they use cookies.</li>
   </ul>
   <h2>Website and Android app</h2>
   <p>The browser games use the same rules, levels and scoring as the app. The app adds everything that tracks your progress over time.</p>
@@ -380,17 +381,17 @@ function privacyPage() {
 <section class="page-hero"><div class="wrap">
   ${breadcrumbs([['Home', '/'], ['Privacy Policy']])}
   <h1>Privacy Policy</h1>
-  <p class="lead">The short version: this website doesn’t ask for, collect or share any personal information.</p>
+  <p class="lead">The short version: we don’t ask for your personal information, and your game scores stay in your browser. This website may show ads from Google AdSense, and Google may collect information to serve and measure those ads, as explained below.</p>
   <p class="muted">Last updated: 21 October 2026</p>
 </div></section>
 <section class="section-tight" style="padding-top:0"><div class="wrap prose">
   <p>This policy covers the website at <strong>brainbuzzgame.com</strong>. The BrainBuzz Android app has its own privacy policy, which you can read on <a href="${APP_PRIVACY_URL}" rel="noopener" target="_blank">the BrainBuzz app privacy policy page</a>. It is also linked from the app’s Google Play listing.</p>
 
-  <h2>What we don’t do</h2>
+  <h2>What we collect</h2>
   <ul>
-    <li>No accounts, sign-ups or forms.</li>
-    <li>No analytics, advertising or tracking scripts, and no third-party cookies.</li>
-    <li>No fonts, scripts or images loaded from other companies’ servers. Everything is served from this site.</li>
+    <li>No accounts, sign-ups or forms. We never ask for your name, email address or other contact details on this website.</li>
+    <li>We don’t run our own analytics or tracking, and we don’t sell personal information.</li>
+    <li>Apart from Google’s advertising services described below, the site’s pages, fonts, scripts and images are served from this site.</li>
   </ul>
 
   <h2>What’s stored in your browser</h2>
@@ -399,7 +400,34 @@ function privacyPage() {
     <li><code>bb-theme</code>: whether you chose the light or dark theme.</li>
     <li><code>bb-progress-v1</code>: your best score for each game and difficulty, the difficulty you last picked, and your Daily Challenge results for recent days.</li>
   </ul>
-  <p>This data doesn’t sync with the BrainBuzz Android app or with other browsers and devices.</p>
+  <p>This data doesn’t sync with the BrainBuzz Android app or with other browsers and devices, and it isn’t shared with advertisers.</p>
+
+  <h2>Advertising (Google AdSense)</h2>
+  <p>To help keep the browser games free, this website may display ads provided by <strong>Google AdSense</strong>, an advertising service of Google. When a page that can show ads loads, your browser contacts Google’s servers directly to request an ad.</p>
+  <ul>
+    <li>Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this website or other websites.</li>
+    <li>Google’s use of advertising cookies enables it and its partners to serve ads to you based on your visits to this site and/or other sites on the internet.</li>
+    <li>Google and its advertising partners may also use cookies or similar technologies (such as device identifiers or local storage) to measure ads, limit how often you see the same ad, and detect fraud and abuse. Some of these cookies may be set under this website’s address.</li>
+  </ul>
+  <p>Depending on their services, your settings and the law where you live, Google and its partners may collect or receive information such as your IP address, browser and device information, the page you’re viewing, cookie and other identifiers, your approximate location (derived from your IP address) and how you interact with ads, for example whether you see or click one. This information goes from your browser to Google and its partners. BrainBuzz doesn’t collect or store it; we only see aggregated reports from Google AdSense, such as how many ads were shown or clicked, which don’t identify you.</p>
+  <p>To learn more about how Google handles this information, see:</p>
+  <ul>
+    <li><a href="https://policies.google.com/technologies/partner-sites" rel="noopener" target="_blank">How Google uses information from sites or apps that use its services</a></li>
+    <li><a href="https://policies.google.com/technologies/ads" rel="noopener" target="_blank">How Google uses cookies in advertising</a></li>
+    <li><a href="https://policies.google.com/privacy" rel="noopener" target="_blank">Google Privacy Policy</a></li>
+  </ul>
+
+  <h2>Personalised ads and consent</h2>
+  <p>Where permitted, ads may be <em>personalised</em>, meaning they’re chosen using information about your interests and your earlier activity on this and other websites. Ads that aren’t personalised are chosen using context, such as the page you’re on and your approximate location, but may still use cookies or similar technologies for purposes such as frequency capping, aggregated reporting and fraud prevention.</p>
+  <p>Where the law requires your consent before cookies or personal data are used for advertising, for example in the European Economic Area, the United Kingdom and Switzerland, you’ll be shown a consent message provided through Google, and Google’s advertising technology will act on the choices you make there.</p>
+
+  <h2>Your choices</h2>
+  <ul>
+    <li>Opt out of personalised advertising from Google, or change how Google personalises ads, in <a href="https://www.google.com/settings/ads" rel="noopener" target="_blank">Google Ads Settings</a>.</li>
+    <li>Opt out of some other third-party vendors’ use of cookies for personalised advertising at <a href="https://www.aboutads.info/choices/" rel="noopener" target="_blank">www.aboutads.info</a> or, in Europe, <a href="https://www.youronlinechoices.eu/" rel="noopener" target="_blank">www.youronlinechoices.eu</a>.</li>
+    <li>Block or delete cookies, or limit cross-site tracking, in your browser settings.</li>
+  </ul>
+  <p>These choices work separately, and no single setting turns off everything. Opting out of personalised ads doesn’t stop ads from appearing; you’ll still see ads that aren’t personalised. Many opt-outs are stored in a cookie, so they apply only to the browser and device where you set them, and clearing your cookies can undo them.</p>
 
   <h2>Hosting</h2>
   <p>Like any website, our hosting provider receives technical information when your browser requests a page, such as your IP address, browser type and the page requested. It uses this to deliver the site and keep it secure. We don’t use it to identify you.</p>
@@ -408,7 +436,7 @@ function privacyPage() {
   <p>Buttons such as “Get it on Google Play” open the BrainBuzz listing on Google Play. These links include a label naming the part of our site you came from (for example <code>utm_campaign=hero</code>), which helps us see which pages lead to app installs. They contain no personal information. Google’s own <a href="https://policies.google.com/privacy" rel="noopener" target="_blank">privacy policy</a> applies once you’re on Google Play.</p>
 
   <h2>Children</h2>
-  <p>The website is suitable for all ages and doesn’t knowingly collect information from anyone, including children.</p>
+  <p>BrainBuzz is a general-audience website. Its games are suitable for all ages, but the site isn’t directed at children under 13, and we don’t knowingly collect personal information from children. If you believe a child has provided personal information through this website, please contact us.</p>
 
   <h2>Changes</h2>
   <p>If this policy changes we’ll update this page and the date at the top.</p>
@@ -420,7 +448,7 @@ function privacyPage() {
     path: '/privacy/',
     file: 'privacy/index.html',
     title: 'Privacy Policy',
-    description: 'The brainbuzzgame.com privacy policy: no accounts, no tracking and no ads. Best scores are kept only in your browser. Includes a link to the app’s policy.',
+    description: 'The brainbuzzgame.com privacy policy: no accounts, best scores kept in your browser, and how Google AdSense ads use cookies. Links to the app’s policy.',
     body,
     jsonLd: [breadcrumbLd([['Home', '/'], ['Privacy Policy', '/privacy/']])],
     priority: '0.3',
@@ -494,6 +522,7 @@ function notFoundPage() {
     body,
     noindex: true,
     sitemap: false,
+    ads: false,
   };
 }
 

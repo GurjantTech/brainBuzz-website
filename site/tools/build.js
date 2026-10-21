@@ -1,19 +1,25 @@
 /**
  * Builds the static site into dist/. No dependencies; runs on Node 12.20+.
  *   node tools/build.js
- * Renders every page in src/pages.js, copies assets, builds the icon sprite, sitemap, robots,
- * manifest and CNAME, then checks that every internal link and asset reference resolves.
+ *   node tools/build.js --ad-preview   local only: dashed "not an advertisement" boxes instead of AdSense
+ * Renders every page in src/pages.js, copies assets and ads.txt, builds the icon sprite, sitemap,
+ * robots, manifest and CNAME, then checks that every internal link and asset reference resolves.
  */
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
-import { renderPage, THEME_SCRIPT } from '../src/layout.js';
+import { renderPage, THEME_SCRIPT, LOADER_SCRIPT } from '../src/layout.js';
 import { allPages } from '../src/pages.js';
 import { SITE_URL } from '../assets/js/lib/site.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
+const AD_PREVIEW = process.argv.includes('--ad-preview');
+if (AD_PREVIEW && (process.env.CI || process.env.GITHUB_ACTIONS)) {
+  console.error('--ad-preview is for local layout checks only and must never be deployed.');
+  process.exit(1);
+}
 
 function rmrf(dir) {
   if (!fs.existsSync(dir)) return;
@@ -97,6 +103,7 @@ function main() {
   rmrf(DIST);
   copyDir(path.join(ROOT, 'assets'), path.join(DIST, 'assets'));
   fs.copyFileSync(path.join(ROOT, 'favicon.ico'), path.join(DIST, 'favicon.ico'));
+  fs.copyFileSync(path.join(ROOT, 'ads.txt'), path.join(DIST, 'ads.txt'));
   write('assets/img/icons.svg', iconSprite());
 
   const css = fs.readFileSync(path.join(ROOT, 'assets/css/styles.css'));
@@ -104,7 +111,8 @@ function main() {
   const build = {
     cssVersion: hash(css),
     jsVersion: hash(js),
-    scriptHash: `sha256-${crypto.createHash('sha256').update(THEME_SCRIPT).digest('base64')}`,
+    scriptHashes: [THEME_SCRIPT, LOADER_SCRIPT].map((s) => `sha256-${crypto.createHash('sha256').update(s).digest('base64')}`),
+    adPreview: AD_PREVIEW,
   };
 
   const pages = allPages();
@@ -145,6 +153,7 @@ ${urls.map((p) => `  <url><loc>${SITE_URL}${p.path}</loc><lastmod>${today}</last
   }
   const files = listFiles(DIST);
   const bytes = files.reduce((n, f) => n + fs.statSync(f).size, 0);
+  if (AD_PREVIEW) console.log('AD PREVIEW BUILD: placeholder ad boxes, no AdSense. Local use only; rebuild without --ad-preview before testing real ads.');
   console.log(`Built ${pages.length} pages, ${files.length} files (${(bytes / 1024).toFixed(0)} KB) into dist/ in ${Date.now() - started} ms. All internal links OK.`);
 }
 

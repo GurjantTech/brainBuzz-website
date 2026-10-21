@@ -32,6 +32,7 @@ assets/
   js/lib/             random.js (exact port of Kotlin's Random), site.js (URLs, email), store.js, dom.js
   js/engine/          Game rules ported 1:1 from the app's domain/game/*.kt
   js/games/           shell.js (setup → countdown → play → results), one board per game
+ads.txt               Google AdSense authorised-seller record, copied to dist/ads.txt (served at /ads.txt)
 tools/build.js        Build + sitemap/robots/manifest/CNAME + broken-link and missing-icon check
 tools/serve.js        Local preview server
 tests/                parity.test.js (+ Kotlin reference fixtures), e2e.test.js
@@ -60,13 +61,22 @@ java -cp "/tmp/kref/out:$STD" RefMainKt > tests/fixtures/kotlin-reference.jsonl
 
 Deliberate web differences, stated on the site:
 
-- **Every level is free and there are no ads.** In the app, Medium and Hard need a rewarded video. Hints on the web are free, with the same count the app allows per game (its free hints plus its video hints).
+- **Every level is free, with no rewarded videos.** In the app, Medium and Hard need a rewarded video. The website shows Google AdSense ads instead (see below), placed outside the games. Hints on the web are free, with the same count the app allows per game (its free hints plus its video hints).
 - **No XP, levels, streaks, missions or achievements on the web.** Only best scores, the last difficulty and recent Daily results are kept, in `localStorage` (`bb-progress-v1`). They never sync with the app, and the site says so wherever scores appear.
 - The Daily Challenge can be played once per day per browser, like in the app.
 
 ## Play Store links
 
 All CTAs use `playUrl(placement)` in `assets/js/lib/site.js`, which adds `&referrer=utm_source=brainbuzzgame.com&utm_medium=website&utm_campaign=<placement>`. Play Console → *Statistics / Acquisition reports* then shows which placements (hero, header, results_quick-math, …) drive installs.
+
+## Google AdSense
+
+- **Script:** `renderPage()` in `src/layout.js` adds `adsbygoogle.js` (publisher `ca-pub-2294761279203706`) once per page through the hashed loader script, plus the `google-adsense-account` meta tag. The 404 page has no ads.
+- **Manual units:** `adSlot(AD_SLOTS.home)` on the homepage (horizontalAd, between "Why BrainBuzz" and the FAQ) and `adSlot(AD_SLOTS.game)` on every game page (horizontalAd2, below the rules and tips, far from the board). `main.js` requests each unit once. Unfilled units collapse; if AdSense is blocked, `html.ads-off` hides them.
+- **Auto ads, formats and consent messages** are configured in the AdSense account, not in code.
+- **CSP:** Google only supports nonce-based CSP, which static hosting can't issue, so scripts are trusted by hash plus `'strict-dynamic'` (see the comment in `renderPage()`). Ads need frames, images and beacons on changing Google domains, so those directives allow `https:`.
+- **`ads.txt`** in this folder is copied to `dist/ads.txt` (served at `/ads.txt`).
+- **Layout check without real ads:** `node tools/build.js --ad-preview` swaps each unit for a dashed "LOCAL PREVIEW ONLY. Not an advertisement" box. It refuses to run in CI; rebuild without the flag afterwards.
 
 ## Deploy to brainbuzzgame.com (GitHub Pages)
 

@@ -66,7 +66,7 @@ export function mountShell(stage, meta, impl) {
       h('fieldset.diff-grid', {}, h('legend.visually-hidden', {}, 'Difficulty'), options),
       h('div.setup-actions', {}, startBtn),
       h('p.setup-note', {}, icon('check_circle'),
-        h('span', {}, 'Every level is free on the web, with no ads or sign-up. Best scores are saved in this browser only.')),
+        h('span', {}, 'Every level is free on the web, with no sign-up. Best scores are saved in this browser only.')),
     );
   }
 

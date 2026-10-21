@@ -18,6 +18,7 @@ const puppeteer = require('puppeteer-core');
 
 const BASE = process.env.BASE || 'http://localhost:8080';
 const CHROME = process.env.CHROME || '/usr/bin/google-chrome';
+const AD_CLIENT = 'ca-pub-2294761279203706';
 const SPEED = 4;
 const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.app.dailybrainchallenge';
 const WORDS = [...EASY, ...MEDIUM, ...HARD].map(([w]) => w);
@@ -29,11 +30,18 @@ function check(name, cond, detail = '') {
   if (cond) { passed++; console.log(`  ✓ ${name}`); } else { failures.push(`${name} ${detail}`); console.log(`  ✗ ${name} ${detail}`); }
 }
 
-async function newPage(browser, { width = 390, mobile = true, speed = SPEED } = {}) {
+// Third-party ad scripts would also see the sped-up clock below, so accelerated game runs load only this site.
+// The SITE suite runs at real speed with AdSense loading, and once with it blocked.
+async function newPage(browser, { width = 390, mobile = true, speed = SPEED, blockAds = speed !== 1 } = {}) {
   const page = await browser.newPage();
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(e.message));
-  page.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) page.errors.push(m.text()); });
+  const expected = blockAds ? /404|ERR_BLOCKED_BY_CLIENT/ : /404/;
+  page.on('console', (m) => { if (m.type() === 'error' && !expected.test(m.text())) page.errors.push(m.text()); });
+  if (blockAds) {
+    await page.setRequestInterception(true);
+    page.on('request', (r) => (r.url().startsWith(BASE) || r.url().startsWith('data:') ? r.continue() : r.abort('blockedbyclient')));
+  }
   await page.setViewport({ width, height: mobile ? 844 : 900, isMobile: mobile, hasTouch: mobile });
   await page.evaluateOnNewDocument((k) => {
     const now = performance.now.bind(performance);
@@ -525,6 +533,8 @@ async function suiteSite(browser) {
           play: Array.from(document.querySelectorAll('[data-play]')).map((a) => a.href),
           ld: Array.from(document.querySelectorAll('script[type="application/ld+json"]')).every((s) => { try { JSON.parse(s.textContent); return true; } catch (e) { return false; } }),
           unnamedButtons: Array.from(document.querySelectorAll('button, a[href]')).filter((b) => !(b.textContent.trim() || b.getAttribute('aria-label') || b.querySelector('img[alt]:not([alt=""])'))).length,
+          adScripts: document.querySelectorAll('script[src*="pagead/js/adsbygoogle.js"]').length,
+          adSlots: Array.from(document.querySelectorAll('ins.adsbygoogle[data-ad-slot]')).map((i) => `${i.dataset.adClient}/${i.dataset.adSlot}`),
         };
       });
       const tag = `${p} @${width}`;
@@ -537,6 +547,8 @@ async function suiteSite(browser) {
         check(`${tag} Play links are the official listing`, info.play.length >= 2 && info.play.every((u) => u.startsWith(`${PLAY_URL}&referrer=`)), `(${info.play.length})`);
         check(`${tag} structured data parses`, info.ld);
         check(`${tag} every button and link has a name`, info.unnamedButtons === 0, `(${info.unnamedButtons})`);
+        const slot = p === '/' ? [`${AD_CLIENT}/1993165487`] : /^\/play\/.+\//.test(p) ? [`${AD_CLIENT}/1076678798`] : [];
+        check(`${tag} AdSense loads once with the right ad unit`, info.adScripts === 1 && info.adSlots.join() === slot.join(), `(${info.adScripts} ${info.adSlots})`);
       }
     }
     check(`no page errors @${width}`, page.errors.length === 0, page.errors.join(' | '));
@@ -574,6 +586,9 @@ async function suiteSite(browser) {
   const r = await results(blocked);
   check('games still work when storage is blocked', r.score > 0);
   check('no page errors with storage blocked', blocked.errors.length === 0, blocked.errors.join(' | '));
+  // This page also had AdSense blocked (as with an ad blocker): the empty ad slot must not be left behind.
+  const adGone = await blocked.$eval('.ad-wrap', (w) => document.documentElement.classList.contains('ads-off') && getComputedStyle(w).display === 'none');
+  check('games work and ad slots hide when AdSense is blocked', r.score > 0 && adGone);
   await blocked.close();
   await page.close();
 }
