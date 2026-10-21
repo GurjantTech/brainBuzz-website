@@ -1,0 +1,19 @@
+{
+  "name": "brainbuzzgame-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Official website and browser games for BrainBuzz: Daily Challenge (brainbuzzgame.com).",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.js",
+    "serve": "node tools/serve.js",
+    "test": "node tests/parity.test.js",
+    "test:e2e": "node tests/e2e.test.js"
+  },
+  "engines": {
+    "node": ">=12.20"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^13.7.0"
+  }
+}
