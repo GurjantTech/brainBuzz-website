@@ -1,6 +1,6 @@
 # brainbuzzgame.com
 
-Official website for **BrainBuzz: Daily Challenge** (Android, `com.app.dailybrainchallenge`). It promotes the app and has all eight games playable free in the browser, with the same rules, levels and scoring as the app.
+Official website for **BrainBuzz: Daily Challenge** (Android, `com.app.dailybrainchallenge`). It promotes the app and has all eight of the app's games playable free in the browser, with the same rules, levels and scoring as the app, plus three website-only games: 2048 Merge Challenge, Word Detective and Sudoku Daily.
 
 It's a static site: HTML, CSS and vanilla JavaScript modules, with no framework and no runtime dependencies. A small Node script renders the pages from templates so the header, footer and SEO tags live in one place.
 
@@ -9,19 +9,19 @@ It's a static site: HTML, CSS and vanilla JavaScript modules, with no framework 
 ```bash
 npm run build        # renders everything into dist/ (Node 12.20+, no npm install needed)
 npm run serve        # http://localhost:8080, which behaves like GitHub Pages (clean URLs, 404.html)
-npm test             # game engine vs the Android app's Kotlin output (366 checks)
+npm test             # game engine vs the Android app's Kotlin output, plus the website-only games' rules
 npm install          # only needed for the browser test below (installs puppeteer-core)
 npm run test:e2e     # plays every game at every level in Chrome (server must be running)
 ```
 
-`test:e2e` uses `/usr/bin/google-chrome` by default. Set `CHROME=/path/to/chrome` to use another, or `BASE=http://…` to test another server. Pass `site`, `daily` or `games` to run one suite.
+`test:e2e` uses `/usr/bin/google-chrome` by default. Set `CHROME=/path/to/chrome` to use another, or `BASE=http://…` to test another server. Pass `site`, `daily`, `games` or `web` (the website-only games) to run one suite.
 
 ## Structure
 
 ```
 src/
   layout.js           <head> (SEO, Open Graph, CSP), header, footer, Play badge helpers
-  pages.js            Every page: home, /play/, 8 game pages, about, privacy, contact, 404
+  pages.js            Every page: home, /play/, 11 game pages, about, privacy, contact, 404
   content.js          Per-game copy (intro, scoring, tips). Numbers match the engine rules
   icons/              Material Symbols Rounded (the app's icon set), built into one sprite
 assets/
@@ -30,12 +30,14 @@ assets/
   img/                Logo/icons from the app's brain_logo, Play Store screenshots, OG image, Play badge
   js/main.js          Theme toggle, menu, reveal animations, best-score chips, Daily card
   js/lib/             random.js (exact port of Kotlin's Random), site.js (URLs, email), store.js, dom.js
-  js/engine/          Game rules ported 1:1 from the app's domain/game/*.kt
-  js/games/           shell.js (setup → countdown → play → results), one board per game
+  js/engine/          Game rules ported 1:1 from the app's domain/game/*.kt; merge.js, detective.js and sudoku.js
+                      are the website-only games (not from the app)
+  js/games/           shell.js (setup → countdown → play → results), one board per game; kit.js shared pieces;
+                      merge.js, detective.js and sudoku.js mount their own frames
 ads.txt               Google AdSense authorised-seller record, copied to dist/ads.txt (served at /ads.txt)
 tools/build.js        Build + sitemap/robots/manifest/CNAME + broken-link and missing-icon check
 tools/serve.js        Local preview server
-tests/                parity.test.js (+ Kotlin reference fixtures), e2e.test.js
+tests/                parity.test.js (+ Kotlin reference fixtures), games.test.js, e2e.test.js
 ```
 
 ## How the games match the app
@@ -64,6 +66,16 @@ Deliberate web differences, stated on the site:
 - **Every level is free, with no rewarded videos.** In the app, Medium and Hard need a rewarded video. The website shows Google AdSense ads instead (see below), placed outside the games. Hints on the web are free, with the same count the app allows per game (its free hints plus its video hints).
 - **No XP, levels, streaks, missions or achievements on the web.** Only best scores, the last difficulty and recent Daily results are kept, in `localStorage` (`bb-progress-v1`). They never sync with the app, and the site says so wherever scores appear.
 - The Daily Challenge can be played once per day per browser, like in the app.
+
+## Website-only games
+
+`WEB_GAMES` in `assets/js/engine/models.js` lists three games that aren't in the Android app. They don't use the timed shell; each module exports `mount(stage, meta)`. Their records live under `web` in the same `bb-progress-v1` localStorage key, and every game validates what it reads, so missing or corrupt data just means starting fresh.
+
+- **2048 Merge Challenge** (`/play/2048/`): 4×4 board, swipe (pointer events) or arrow keys/WASD. A merged tile can't merge again in the same move and a move that shifts nothing spawns nothing. The board is saved after every move; the best score is stored as `bests.MERGE.CLASSIC`, so the game card shows it.
+- **Word Detective** (`/play/word-detective/`): six guesses at a five-letter word. Puzzle #1 was 1 October 2026; day N uses `ANSWERS[N mod length]` from `engine/detective-words.js`, so the word is the same everywhere on the same local date. **Never reorder or remove answers** (append only), or past and future puzzles change. Guesses are saved as they're made, so a reload can't reset the day, and stats count each day once. Sharing uses the Web Share API, then the clipboard, then a text box to copy.
+- **Sudoku Daily** (`/play/sudoku/`): puzzles are generated in the browser from a seeded `KRandom` (the same per date and level). Clues are removed only while the solution stays unique; Easy and Medium must stay solvable with singles, and Hard prefers puzzles that need more. Every puzzle is verified before use, with a bundled, verified fallback set if generation ever fails.
+
+The guess list in `detective-words.js` is the five-letter words of SCOWL (wamerican), © 2000-2011 Kevin Atkinson, used under its permissive licence (notice kept in the file). The answer list was written for BrainBuzz.
 
 ## Play Store links
 

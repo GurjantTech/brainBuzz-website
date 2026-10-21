@@ -6,11 +6,11 @@
  * start(), hintAvailable(), applyHint() and optionally onTick(ms), onTimeUp(), clockRunning(), onKey(e).
  */
 import { h, icon, clear, formatNumber, formatDuration, untilMidnight, prefersReducedMotion } from '../lib/dom.js';
+import { statGrid, appCta, confetti as confettiIn } from './kit.js';
 import { KRandom } from '../lib/random.js';
 import { DIFFICULTIES, difficultyOf, accuracyOf, resultTitle } from '../engine/models.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
-import { playUrl } from '../lib/site.js';
 
 const NOTHING_TO_HINT = 'Nothing to hint right now.';
 
@@ -429,43 +429,13 @@ export function mountShell(stage, meta, impl) {
     announce(`${resultTitle(accuracy)} ${formatNumber(o.score)} points.`);
   }
 
-  function statGrid(items) {
-    return h('div.stat-grid', {}, items.map(([ic, value, label]) => h('div.stat', {}, icon(ic), h('strong', {}, value), h('span', {}, label))));
-  }
-
   function patternDots(pattern) {
     const dots = pattern.split('').map((c, i) => h(`i.${c === '1' ? 'y' : 'n'}`, { title: `${i + 1}: ${c === '1' ? 'correct' : 'missed'}` }, c === '1' ? '✓' : '✕'));
     const right = pattern.split('').filter((c) => c === '1').length;
     return h('div.pattern', { role: 'img', 'aria-label': `${right} of ${pattern.length} correct` }, dots);
   }
 
-  function appCta(placement) {
-    return h('div.app-cta', {},
-      h('img.logo', { src: '/assets/img/logo-192.webp', width: 60, height: 60, alt: '' }),
-      h('div', {},
-        h('h3', {}, 'Want more brain challenges?'),
-        h('p', {}, 'Get BrainBuzz on Android to earn XP, keep a daily streak and unlock 20 achievements.')),
-      h('a.btn.btn-light', { href: playUrl(placement), rel: 'noopener', target: '_blank', 'data-play': placement },
-        icon('android'), h('span', {}, 'Get it on Google Play')));
-  }
-
-  function confetti() {
-    if (prefersReducedMotion()) return;
-    const colors = ['#6c4bf4', '#0fb5a6', '#ffb23f', '#ff6b6b', '#4ea8ff', '#22b573'];
-    const layer = h('div.confetti', { 'aria-hidden': 'true' });
-    for (let i = 0; i < 70; i++) {
-      const piece = h('i');
-      piece.style.left = `${Math.random() * 100}%`;
-      piece.style.background = colors[i % colors.length];
-      piece.style.setProperty('--dx', `${(Math.random() - 0.5) * 200}px`);
-      piece.style.setProperty('--r', `${Math.random() * 720 - 360}deg`);
-      piece.style.animationDuration = `${1.6 + Math.random() * 1.6}s`;
-      piece.style.animationDelay = `${Math.random() * 0.4}s`;
-      layer.append(piece);
-    }
-    stage.append(layer);
-    setTimeout(() => layer.remove(), 3800);
-  }
+  const confetti = () => confettiIn(stage);
 
   setupView();
 }

@@ -123,4 +123,50 @@ export const GAME_COPY = {
       'Keep moving. The clock doesn’t stop between sums, and a miss only costs your combo.',
     ],
   },
+  // Website-only games (not in the Android app).
+  MERGE: {
+    metaTitle: '2048 Merge Challenge: Free Number Tile Puzzle',
+    description: 'Play 2048 Merge Challenge free in your browser: slide the tiles, merge equal numbers and reach 2048. Swipe or use the arrow keys. Your best score is saved.',
+    intro: [
+      '2048 Merge Challenge is a sliding number puzzle on a 4×4 board. Every move slides all the tiles as far as they can go in one direction, and two tiles with the same number merge into one with double the value: 2 and 2 make 4, 4 and 4 make 8, all the way up to 2048.',
+      'After every move a new 2 (or sometimes a 4) appears in an empty cell. Reach the 2048 tile to win, then keep going for a bigger tile and a higher score. The game ends when the board is full and no two neighbouring tiles match.',
+    ],
+    scoring: 'Every merge adds the value of the new tile to your score: merging two 64s adds 128. Your best score is saved in this browser, and your current board is saved after every move so you can come back to it.',
+    hint: 'There are no hints or timer. Take as long as you like over each move. A move that can’t shift any tile does nothing, so it never costs you a tile.',
+    tips: [
+      'Keep your biggest tile in one corner and build the row next to it in order.',
+      'Use two or three directions most of the time, and the fourth only when you have to.',
+      'Merge small tiles early so they don’t clog the board around your big ones.',
+    ],
+  },
+  DETECTIVE: {
+    metaTitle: 'Word Detective: Free Daily Five-Letter Word Game',
+    description: 'Play Word Detective free: crack the hidden five-letter word in six guesses with letter clues. A new daily word, streaks, stats and unlimited practice.',
+    intro: [
+      'Word Detective hides a five-letter word, and you have six guesses to find it. Every guess must be a real word. After each one, the letters show how close you are: teal with a check means the right letter in the right place, amber with a dot means the letter is in the word but somewhere else, and grey means it isn’t in the word at all.',
+      'There’s a new daily word at midnight, your local time, and everyone gets the same word on the same date. Finish it to build your streak, then play as many practice words as you like. Practice games never change your daily stats.',
+    ],
+    scoring: 'The daily puzzle tracks games played, your win rate, your current and best streak, and how many guesses each win took. Each daily word counts once: replaying or reloading it never adds to your stats.',
+    hint: 'There are no hints, just the letter clues. Repeated letters are marked only as many times as they appear in the answer, so a grey second E means the word has just one.',
+    tips: [
+      'Start with a word that uses common letters, such as E, A, R, T and S.',
+      'Use your second guess to test new letters rather than repeating the ones you know.',
+      'Watch for double letters: words like APPLE or SHEEP repeat a letter.',
+    ],
+  },
+  SUDOKU: {
+    metaTitle: 'Sudoku Daily: Free Online Sudoku, Easy to Hard',
+    description: 'Play Sudoku Daily free: a new puzzle every day at Easy, Medium and Hard, plus unlimited random ones. Notes, hints, mistake checks and best times.',
+    intro: [
+      'Sudoku Daily is the classic 9×9 number puzzle. Fill every empty cell so that each row, each column and each 3×3 box contains the numbers 1 to 9 exactly once. Every puzzle has exactly one solution.',
+      'Each level has a daily puzzle that’s the same for everyone on the same date, and you can play unlimited random puzzles too. Easy and Medium can always be solved step by step without guessing; Hard has fewer clues and needs more advanced techniques.',
+    ],
+    scoring: 'Sudoku Daily times each puzzle and counts your mistakes and hints. Your best time for each level and the daily puzzles you’ve solved are saved in this browser, and an unfinished puzzle is saved as you play.',
+    hint: 'Hints are unlimited. Each one fills in a correct number, in the selected cell if it needs one or otherwise in the cell with the fewest possibilities. Wrong numbers are marked in red straight away.',
+    tips: [
+      'Look for a number that can only go in one cell of a row, column or box.',
+      'Use notes to pencil in candidates when a cell has only two or three options.',
+      'When you place a number, notes for it in the same row, column and box are cleared for you.',
+    ],
+  },
 };

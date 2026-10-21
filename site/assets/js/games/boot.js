@@ -12,13 +12,17 @@ const loaders = {
   LOGIC_PATH: () => import('./logic.js').then((m) => m.default),
   ODD_ONE_OUT: () => import('./odd.js').then((m) => m.default),
   WORD_SCRAMBLE: () => import('./word.js').then((m) => m.default),
+  // Website-only games bring their own frame instead of the timed shell.
+  MERGE: () => import('./merge.js').then((m) => m.default),
+  DETECTIVE: () => import('./detective.js').then((m) => m.default),
+  SUDOKU: () => import('./sudoku.js').then((m) => m.default),
 };
 
 const stage = document.getElementById('game');
 const meta = stage && gameByType(stage.dataset.game);
 if (stage && meta && loaders[meta.type]) {
   loaders[meta.type]()
-    .then((impl) => mountShell(stage, meta, impl))
+    .then((impl) => (meta.web ? impl.mount(stage, meta) : mountShell(stage, meta, impl)))
     .catch((err) => {
       console.error(err);
       clear(stage).append(h('div.stage-loading', {},

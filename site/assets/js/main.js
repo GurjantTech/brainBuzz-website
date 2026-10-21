@@ -1,5 +1,5 @@
 /** Site chrome: theme toggle, mobile menu, header shadow, reveal-on-scroll, game cards, the Daily card and ad units. */
-import { topScore, dailyResult } from './lib/store.js';
+import { topScore, dailyResult, webData } from './lib/store.js';
 import { formatNumber, untilMidnight, icon } from './lib/dom.js';
 import { todayEpochDay } from './engine/quiz.js';
 
@@ -67,12 +67,26 @@ if ('IntersectionObserver' in window) {
 }
 
 // Game cards: show this browser's best score, like the app's "New" / best badge.
+// Word Detective shows its daily streak and Sudoku Daily the puzzles solved instead.
+function cardBadge(type) {
+  if (type === 'DETECTIVE') {
+    const s = webData('detective').stats || {};
+    const live = Number.isInteger(s.lastWonDay) && s.lastWonDay >= todayEpochDay() - 1 && Number.isInteger(s.streak) && s.streak > 0;
+    return live ? ['local_fire_department', String(s.streak), `${s.streak}-day streak`] : null;
+  }
+  if (type === 'SUDOKU') {
+    const n = webData('sudoku').solved;
+    return Number.isInteger(n) && n > 0 ? ['task_alt', String(n), `${n} ${n === 1 ? 'puzzle' : 'puzzles'} solved`] : null;
+  }
+  const best = topScore(type);
+  return best === null ? null : ['emoji_events', formatNumber(best), `Your best: ${formatNumber(best)}`];
+}
 document.querySelectorAll('[data-best]').forEach((chip) => {
-  const best = topScore(chip.dataset.best);
-  if (best !== null) {
+  const badge = cardBadge(chip.dataset.best);
+  if (badge) {
     chip.textContent = '';
-    chip.append(icon('emoji_events'), formatNumber(best));
-    chip.setAttribute('aria-label', `Your best: ${formatNumber(best)}`);
+    chip.append(icon(badge[0]), badge[1]);
+    chip.setAttribute('aria-label', badge[2]);
   }
 });
 

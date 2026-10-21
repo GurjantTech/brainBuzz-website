@@ -181,11 +181,78 @@ export const GAMES = [
   },
 ];
 
-export const gameByType = (type) => GAMES.find((g) => g.type === type);
-export const gameBySlug = (slug) => GAMES.find((g) => g.slug === slug);
+const sudokuRules = {
+  EASY: ['About 40 clues', 'Every step can be found by scanning, no guessing'],
+  MEDIUM: ['About 32 clues', 'Fewer clues, still no guessing needed'],
+  HARD: ['24–30 clues', 'Needs more advanced solving techniques'],
+};
 
-/** Games in the library order the app uses (the Daily Challenge has its own card). */
-export const LIBRARY = GAMES.filter((g) => g.type !== 'DAILY');
+/**
+ * Games that are only on the website (not in the Android app). They run in their own frames
+ * instead of the timed shell; `levels` says whether the page lists Easy/Medium/Hard rules.
+ */
+export const WEB_GAMES = [
+  {
+    type: 'MERGE',
+    slug: '2048',
+    title: '2048 Merge Challenge',
+    tagline: 'Slide and merge tiles to reach 2048',
+    category: 'NUMBERS',
+    color: '#C2410C',
+    icon: 'grid_view',
+    web: true,
+    levels: false,
+    howToPlay: [
+      'Swipe, or use the arrow keys, to slide every tile on the board.',
+      'Two tiles with the same number merge into one when they touch.',
+      'Every move adds a new tile. Reach 2048, then keep going for a higher score.',
+    ],
+    rules: () => ['4×4 board, starting with two tiles', 'Each merge adds the new tile’s value to your score', 'The game ends when no tile can move'],
+  },
+  {
+    type: 'DETECTIVE',
+    slug: 'word-detective',
+    title: 'Word Detective',
+    tagline: 'Crack the hidden five-letter word',
+    category: 'WORDS',
+    color: '#0B7285',
+    icon: 'search',
+    web: true,
+    levels: false,
+    howToPlay: [
+      'Guess the hidden five-letter word in six tries. Every guess must be a real word.',
+      'Teal with a check: right letter, right place. Amber with a dot: in the word, but elsewhere. Grey: not in the word.',
+      'Everyone gets the same daily word. Practice words are unlimited.',
+    ],
+    rules: () => ['A new daily word at midnight, your time', '6 guesses of five-letter words', 'Daily streaks and stats, plus unlimited practice'],
+  },
+  {
+    type: 'SUDOKU',
+    slug: 'sudoku',
+    title: 'Sudoku Daily',
+    tagline: 'Fill the grid so every row, column and box has 1–9',
+    category: 'LOGIC',
+    color: '#1864AB',
+    icon: 'grid_on',
+    web: true,
+    levels: true,
+    howToPlay: [
+      'Fill every empty cell so each row, column and 3×3 box contains 1 to 9 once.',
+      'Pick a cell, then a number. Notes mode lets you pencil in candidates.',
+      'Wrong numbers are marked straight away. A hint fills in a correct cell.',
+    ],
+    rules: (d) => [...sudokuRules[d], 'A new daily puzzle, plus unlimited random ones'],
+  },
+];
+
+/** Every game on the website: the app's games, then the website-only ones. */
+export const ALL_GAMES = [...GAMES, ...WEB_GAMES];
+
+export const gameByType = (type) => ALL_GAMES.find((g) => g.type === type);
+export const gameBySlug = (slug) => ALL_GAMES.find((g) => g.slug === slug);
+
+/** Games in the library order the app uses (the Daily Challenge has its own card), then the website-only games. */
+export const LIBRARY = ALL_GAMES.filter((g) => g.type !== 'DAILY');
 
 /** Shared accuracy rule (GameModels.kt accuracyOf). */
 export function accuracyOf(type, correct, total, moves) {

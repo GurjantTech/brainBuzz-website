@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node tools/build.js",
     "serve": "node tools/serve.js",
-    "test": "node tests/parity.test.js",
+    "test": "node tests/parity.test.js && node tests/games.test.js",
     "test:e2e": "node tests/e2e.test.js"
   },
   "engines": {

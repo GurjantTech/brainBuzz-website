@@ -2,7 +2,8 @@
  * End-to-end test: plays every game at every difficulty to its results screen in real Chrome,
  * using solvers that read only what's on screen. Also checks hints, pause/resume, restart,
  * deliberate mistakes, keyboard play, saved bests, the once-a-day Daily Challenge, navigation,
- * theme toggle, mobile menu and Play Store links.
+ * theme toggle, mobile menu and Play Store links. The `web` suite plays the website-only games
+ * (2048, Word Detective, Sudoku Daily) and checks every move against their engines.
  *
  *   npm run build && npm run serve      (in another terminal)
  *   npm run test:e2e                    (CHROME=/path/to/chrome BASE=http://localhost:8080)
@@ -12,6 +13,11 @@
  */
 import { createRequire } from 'module';
 import { EASY, MEDIUM, HARD } from '../assets/js/engine/word-bank.js';
+import * as M from '../assets/js/engine/merge.js';
+import * as D from '../assets/js/engine/detective.js';
+import { ANSWERS } from '../assets/js/engine/detective-words.js';
+import * as S from '../assets/js/engine/sudoku.js';
+import { todayEpochDay } from '../assets/js/engine/quiz.js';
 
 const require = createRequire(import.meta.url);
 const puppeteer = require('puppeteer-core');
@@ -26,6 +32,7 @@ const WORDS = [...EASY, ...MEDIUM, ...HARD].map(([w]) => w);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let passed = 0;
 const failures = [];
+const thirdParty = [];
 function check(name, cond, detail = '') {
   if (cond) { passed++; console.log(`  ✓ ${name}`); } else { failures.push(`${name} ${detail}`); console.log(`  ✗ ${name} ${detail}`); }
 }
@@ -35,7 +42,13 @@ function check(name, cond, detail = '') {
 async function newPage(browser, { width = 390, mobile = true, speed = SPEED, blockAds = speed !== 1 } = {}) {
   const page = await browser.newPage();
   page.errors = [];
-  page.on('pageerror', (e) => page.errors.push(e.message));
+  // Uncaught errors thrown entirely inside third-party code (e.g. Google's ad scripts) aren't this site's
+  // bugs; they're reported as warnings instead of failing the run.
+  page.on('pageerror', (e) => {
+    const frames = (e.stack || '').split('\n').filter((l) => /https?:\/\//.test(l));
+    if (frames.length && frames.every((l) => !l.includes(BASE))) thirdParty.push(`${e.message} (${frames[0].trim().replace(/\?[^:)]*/, '').slice(0, 110)})`);
+    else page.errors.push(e.message);
+  });
   const expected = blockAds ? /404|ERR_BLOCKED_BY_CLIENT/ : /404/;
   page.on('console', (m) => { if (m.type() === 'error' && !expected.test(m.text())) page.errors.push(m.text()); });
   if (blockAds) {
@@ -513,7 +526,8 @@ async function suiteDaily(browser) {
 async function suiteSite(browser) {
   console.log('\nSITE');
   const paths = ['/', '/play/', '/about/', '/privacy/', '/contact/', '/play/daily-challenge/', '/play/memory-matrix/', '/play/memory-match/',
-    '/play/logic-path/', '/play/odd-one-out/', '/play/word-scramble/', '/play/number-sequence/', '/play/quick-math/'];
+    '/play/logic-path/', '/play/odd-one-out/', '/play/word-scramble/', '/play/number-sequence/', '/play/quick-math/',
+    '/play/2048/', '/play/word-detective/', '/play/sudoku/'];
   for (const width of [390, 820, 1280]) {
     const page = await newPage(browser, { width, mobile: width < 600, speed: 1 });
     for (const p of paths) {
@@ -593,6 +607,384 @@ async function suiteSite(browser) {
   await page.close();
 }
 
+// ---------- Website-only games (2048, Word Detective, Sudoku Daily) ----------
+
+const progress = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('bb-progress-v1') || '{}'));
+const setWeb = (page, game, value) => page.evaluate((g, v) => {
+  const d = JSON.parse(localStorage.getItem('bb-progress-v1') || '{}');
+  d.web = d.web || {};
+  d.web[g] = v;
+  localStorage.setItem('bb-progress-v1', JSON.stringify(d));
+}, game, value);
+
+async function freshPage(browser, opts) {
+  const ctx = await browser.createIncognitoBrowserContext();
+  const page = await newPage(ctx, { speed: 1, blockAds: true, ...opts });
+  page.ctx = ctx;
+  return page;
+}
+
+async function suiteMerge(browser, width) {
+  const mobile = width < 600;
+  const tag = mobile ? 'mobile' : 'desktop';
+  const page = await freshPage(browser, { width, mobile });
+  await page.goto(`${BASE}/play/2048/`, { waitUntil: 'networkidle0' });
+  await page.waitForSelector('.m2-board');
+  const grid = async () => ((await progress(page)).web.merge.current || {});
+  let g = await grid();
+  check(`2048 ${tag}: starts with two tiles of 2 or 4`, g.grid.filter(Boolean).length === 2 && g.grid.filter(Boolean).every((v) => v === 2 || v === 4));
+  check(`2048 ${tag}: board fits the screen`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+
+  // Keyboard: every press is checked against the engine. Valid moves spawn exactly one tile; blocked ones change nothing.
+  const dirs = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+  let ok = true;
+  let detail = '';
+  let validMoves = 0;
+  let blocked = 0;
+  let lastScore = 0;
+  const order = ['ArrowDown', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'ArrowLeft', 'ArrowUp']; // corner play, all four directions
+  for (let i = 0; i < 40 && ok; i++) {
+    const key = order[i % order.length];
+    const before = await grid();
+    if (!before.grid) break; // the random board ended early
+    const expected = M.slide(M.fromGrid(before.grid, before.score), dirs[key]);
+    await page.keyboard.press(key);
+    await sleep(40);
+    const after = await grid();
+    if (!after.grid) break; // game over; the results screen is checked separately below
+    lastScore = after.score;
+    if (!expected.moved) {
+      blocked++;
+      if (JSON.stringify(after.grid) !== JSON.stringify(before.grid) || after.score !== before.score) { ok = false; detail = 'blocked move changed the board'; }
+      continue;
+    }
+    validMoves++;
+    const want = M.toGrid(expected.tiles);
+    const diff = after.grid.map((v, k) => (v !== want[k] ? k : -1)).filter((k) => k >= 0);
+    if (diff.length !== 1 || want[diff[0]] !== 0 || ![2, 4].includes(after.grid[diff[0]]) || after.score !== before.score + expected.gained) {
+      ok = false;
+      detail = `move ${i} ${key}: diff ${diff} score ${before.score}+${expected.gained}→${after.score}`;
+    }
+  }
+  check(`2048 ${tag}: keyboard moves match the rules and spawn one tile`, ok && validMoves > 10, `${detail} (${validMoves} valid, ${blocked} blocked)`);
+  if (await page.$('.results')) { // rare: the random board filled up; start again for the checks below
+    await page.click('.results .btn-primary');
+    await page.waitForSelector('.m2-board');
+  } else {
+    check(`2048 ${tag}: score shown matches the saved score`, (await page.$eval('.hud-score strong', (e) => e.textContent.replace(/,/g, ''))) === String((await grid()).score));
+  }
+  const best = (await progress(page)).bests.MERGE.CLASSIC;
+  check(`2048 ${tag}: best score is saved`, best >= lastScore && best > 0, `(${best} vs ${lastScore})`);
+
+  // Swipe: mouse drag on desktop, real touch events on mobile.
+  const box = await (await page.$('.m2-board')).boundingBox();
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const before = await grid();
+  const dir = ['left', 'right', 'up', 'down'].find((d) => M.slide(M.fromGrid(before.grid, before.score), d).moved);
+  const [dx, dy] = { left: [-90, 0], right: [90, 0], up: [0, -90], down: [0, 90] }[dir];
+  if (mobile) {
+    const cdp = await page.target().createCDPSession();
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: cx, y: cy }] });
+    for (let k = 1; k <= 5; k++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: cx + (dx * k) / 5, y: cy + (dy * k) / 5 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  } else {
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx + dx, cy + dy, { steps: 5 });
+    await page.mouse.up();
+  }
+  await sleep(80);
+  const swiped = await grid();
+  const want = M.toGrid(M.slide(M.fromGrid(before.grid, before.score), dir).tiles);
+  check(`2048 ${tag}: ${mobile ? 'touch swipe' : 'mouse drag'} ${dir} moves the tiles`, swiped.grid.filter((v, k) => v !== want[k]).length === 1, JSON.stringify(swiped.grid));
+  const scrollY = await page.evaluate(() => scrollY);
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.waitForSelector('.m2-tile');
+  const restored = await page.$$eval('.m2-tile', (els) => els.length);
+  check(`2048 ${tag}: board survives a reload`, restored === swiped.grid.filter(Boolean).length && (await grid()).score === swiped.score, `(${restored}) y=${scrollY}`);
+
+  // Blocked move from a known board: nothing changes and the player is told.
+  await setWeb(page, 'merge', { current: { grid: [2, 4, 8, 16, ...new Array(12).fill(0)], score: 10, won: false, keepPlaying: false, moves: 3 } });
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.keyboard.press('ArrowLeft');
+  await sleep(60);
+  check(`2048 ${tag}: impossible move spawns nothing`, JSON.stringify((await grid()).grid) === JSON.stringify([2, 4, 8, 16, ...new Array(12).fill(0)])
+    && (await page.$eval('.m2-status', (e) => e.textContent)).includes('Nothing can move left'));
+
+  // Reaching 2048, then keep going.
+  await setWeb(page, 'merge', { current: { grid: [1024, 1024, ...new Array(14).fill(0)], score: 5000, won: false, keepPlaying: false, moves: 400 } });
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForSelector('.overlay', { timeout: 3000 });
+  check(`2048 ${tag}: making 2048 shows the win message`, (await page.$eval('.overlay', (e) => e.textContent)).includes('You made 2048'));
+  await page.click('.overlay .btn-primary');
+  await sleep(50);
+  const cont = await grid();
+  check(`2048 ${tag}: Keep going continues the same board`, !(await page.$('.overlay')) && cont.won === true && cont.keepPlaying === true && cont.grid.includes(2048));
+  await page.keyboard.press('ArrowDown');
+  await sleep(60);
+  check(`2048 ${tag}: no second win message after continuing`, !(await page.$('.overlay')));
+
+  // One move from game over: the move fills the last gap and nothing can merge.
+  await setWeb(page, 'merge', { current: { grid: [2, 2, 8, 16, 8, 16, 32, 64, 16, 32, 64, 128, 32, 64, 128, 256], score: 900, won: false, keepPlaying: false, moves: 99 } });
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForSelector('.results', { timeout: 3000 });
+  const over = await page.$eval('.results', (e) => e.textContent);
+  check(`2048 ${tag}: game over is detected and shows the score`, over.includes('No moves left') && over.includes('904'), over.slice(0, 80));
+  check(`2048 ${tag}: finished game isn't restored`, (await progress(page)).web.merge.current === null);
+  await page.click('.results .btn-primary');
+  await page.waitForSelector('.m2-board');
+  check(`2048 ${tag}: Play again starts a fresh board`, (await grid()).grid.filter(Boolean).length === 2 && (await grid()).score === 0);
+
+  // New game asks first when there's progress.
+  for (const k of ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp']) await page.keyboard.press(k);
+  await sleep(50);
+  const moved = (await grid()).moves > 0;
+  await page.click('.hud-actions .btn');
+  const asked = await page.$('.overlay');
+  if (asked) await page.click('.overlay .btn-primary');
+  await sleep(50);
+  check(`2048 ${tag}: New game confirms, then resets`, (!moved || asked) && (await grid()).score === 0 && (await grid()).moves === 0);
+  check(`2048 ${tag}: no page errors`, page.errors.length === 0, page.errors.join(' | '));
+  await page.ctx.close();
+}
+
+async function typeWord(page, word, { screen = false } = {}) {
+  for (const ch of word) {
+    if (screen) await page.click(`.wd-key[aria-label^="${ch}"]`);
+    else await page.keyboard.press(ch.toLowerCase());
+  }
+  if (screen) await page.click('.wd-key.wide:first-child');
+  else await page.keyboard.press('Enter');
+  await sleep(950);
+}
+
+async function suiteDetective(browser) {
+  const today = todayEpochDay();
+  const answer = D.dailyAnswer(today);
+  const wrongs = ANSWERS.map((w) => w.toUpperCase()).filter((w) => w !== answer).slice(0, 6);
+  const page = await freshPage(browser, { width: 390, mobile: true });
+  // puppeteer-core 13's overridePermissions uses an old clipboard permission name that current Chrome ignores.
+  await browser._connection.send('Browser.grantPermissions', {
+    origin: BASE, browserContextId: page.ctx._id, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'],
+  });
+  await page.goto(`${BASE}/play/word-detective/`, { waitUntil: 'networkidle0' });
+  await page.waitForSelector('.wd-grid');
+  check('Detective: shows today’s puzzle number', (await page.$eval('.wd-tab[aria-pressed="true"]', (e) => e.textContent)).includes(`#${D.puzzleNumber(today)}`));
+  const saved = async () => ((await progress(page)).web || {}).detective || {};
+  await typeWord(page, 'QXZVJ');
+  check('Detective: unknown words are rejected without using a guess', (await page.$eval('.wd-msg', (e) => e.textContent)).includes('isn’t in the word list') && !((await saved()).days || {})[today]);
+  for (let i = 0; i < 5; i++) await page.keyboard.press('Backspace');
+  await typeWord(page, 'CRA');
+  check('Detective: short guesses are rejected', (await page.$eval('.wd-msg', (e) => e.textContent)).includes('Not enough letters'));
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
+
+  // A wrong guess with the on-screen keyboard; tiles and keys must match the scoring rules.
+  await typeWord(page, wrongs[0], { screen: true });
+  const marks = await page.$$eval('.wd-row:first-child .wd-tile', (els) => els.map((e) => ['correct', 'present', 'absent'].find((c) => e.classList.contains(c))));
+  check('Detective: on-screen keyboard enters a guess', ((await saved()).days[today].guesses || []).join() === wrongs[0]);
+  check('Detective: tile colours follow the rules', JSON.stringify(marks) === JSON.stringify(D.score(answer, wrongs[0])), `${wrongs[0]} vs ${answer}: ${marks}`);
+  const states = D.letterStates(answer, [wrongs[0]]);
+  const keyOk = await page.evaluate((st) => Object.entries(st).every(([k, v]) => document.querySelector(`.wd-key[aria-label^="${k}"]`).classList.contains(v)), states);
+  check('Detective: keyboard shows letter states', keyOk);
+
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.waitForSelector('.wd-grid');
+  check('Detective: guesses survive a reload (no fresh attempts)', (await page.$$eval('.wd-row:first-child .wd-tile', (els) => els.map((e) => e.textContent).join(''))) === wrongs[0]);
+
+  // Yesterday's win carries a streak into today.
+  const s0 = (await saved()).stats || D.emptyStats();
+  await setWeb(page, 'detective', { ...(await saved()), stats: { ...s0, played: 3, won: 3, streak: 3, maxStreak: 3, lastDay: today - 1, lastWonDay: today - 1, dist: [0, 1, 2, 0, 0, 0] } });
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.waitForSelector('.wd-grid');
+  await typeWord(page, answer);
+  await page.waitForSelector('.wd-panel .results', { timeout: 4000 });
+  let st = (await saved()).stats;
+  check('Detective: solving shows the result', (await page.$eval('.wd-panel', (e) => e.textContent)).includes('You found'));
+  check('Detective: win updates stats once and extends the streak', st.played === 4 && st.won === 4 && st.streak === 4 && st.dist[1] === 2, JSON.stringify(st));
+
+  // Share (headless Chrome has no navigator.share → clipboard). The clipboard needs a real click, so let the panel
+  // finish scrolling into view first.
+  await sleep(900);
+  await page.click('.wd-panel .btn-primary');
+  await page.waitForFunction(() => document.querySelector('.wd-share-note').textContent.length > 0, { timeout: 3000 });
+  const clip = await page.evaluate(() => navigator.clipboard.readText().catch(() => ''));
+  const note = await page.$eval('.wd-share-note', (e) => e.textContent);
+  check('Detective: share copies a spoiler-free result', note.includes('Copied') && clip.includes(`#${D.puzzleNumber(today)} 2/6`) && !clip.includes(answer) && /🟩/.test(clip), `note="${note}" clip="${clip}"`);
+
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.waitForSelector('.wd-panel .results');
+  await page.keyboard.type('hello');
+  await page.keyboard.press('Enter');
+  await sleep(300);
+  st = (await saved()).stats;
+  check('Detective: a finished daily can’t be replayed for stats', st.played === 4 && st.streak === 4 && (await saved()).days[today].guesses.length === 2);
+  await page.goto(`${BASE}/play/`, { waitUntil: 'networkidle0' });
+  check('Detective: game card shows the streak', (await page.$eval('[data-best="DETECTIVE"]', (e) => e.textContent)) === '4');
+
+  // Practice never touches the daily stats.
+  await page.goto(`${BASE}/play/word-detective/`, { waitUntil: 'networkidle0' });
+  await page.click('.wd-tab:nth-child(2)');
+  for (const w of wrongs) { if (await page.$('.wd-panel .results')) break; await typeWord(page, w); }
+  await page.waitForSelector('.wd-panel .results', { timeout: 4000 });
+  const pt = await page.$eval('.wd-panel', (e) => e.textContent);
+  check('Detective: practice game ends with the answer and leaves stats alone', pt.includes('Practice word') && /You found|The word was/.test(pt) && (await saved()).stats.played === 4);
+  check('Detective: no page errors', page.errors.length === 0, page.errors.join(' | '));
+  await page.ctx.close();
+
+  // A daily loss reveals the word and resets the streak; sharing falls back to a text box without share or clipboard.
+  const lose = await freshPage(browser, { width: 1280, mobile: false });
+  await lose.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+  });
+  await lose.goto(`${BASE}/play/word-detective/`, { waitUntil: 'networkidle0' });
+  for (const w of wrongs) await typeWord(lose, w);
+  await lose.waitForSelector('.wd-panel .results', { timeout: 4000 });
+  const lost = await lose.$eval('.wd-panel', (e) => e.textContent);
+  const ls = (await progress(lose)).web.detective.stats;
+  check('Detective: a loss reveals the answer', lost.includes('The word was') && lost.includes(answer));
+  check('Detective: a loss counts once and resets the streak', ls.played === 1 && ls.won === 0 && ls.streak === 0);
+  await lose.$eval('.wd-panel .btn-primary', (btn) => btn.click());
+  await lose.waitForSelector('.wd-share-text', { timeout: 3000 });
+  check('Detective: without share or clipboard, the result is shown to copy', (await lose.$eval('.wd-share-note', (e) => e.textContent)).includes('Sharing isn’t available')
+    && (await lose.$eval('.wd-share-text', (e) => e.value)).includes('X/6'));
+  check('Detective: no page errors (fallbacks)', lose.errors.length === 0, lose.errors.join(' | '));
+  await lose.ctx.close();
+}
+
+async function suiteSudoku(browser, width) {
+  const mobile = width < 600;
+  const tag = mobile ? 'mobile' : 'desktop';
+  const today = todayEpochDay();
+  const ref = S.generate('EASY', S.dailySeed(today, 'EASY'));
+  const page = await freshPage(browser, { width, mobile });
+  await page.goto(`${BASE}/play/sudoku/`, { waitUntil: 'networkidle0' });
+  await page.waitForSelector('.setup-actions .btn-primary');
+  await page.evaluate(() => document.querySelector('input[value="EASY"]').click());
+  await page.click('.setup-actions .btn-primary');
+  await page.waitForSelector('.sd-grid');
+  const cells = () => page.$$eval('.sd-cell', (els) => els.map((e) => ({ v: Number(e.childNodes.length === 1 && e.firstChild.nodeType === 3 ? e.textContent : 0), given: e.classList.contains('given'), wrong: e.classList.contains('wrong'), hinted: e.classList.contains('hinted'), notes: e.querySelector('.sd-notes') ? e.textContent : '' })));
+  let c = await cells();
+  check(`Sudoku ${tag}: today’s Easy puzzle matches the generator (same for everyone)`, c.length === 81 && c.every((x, i) => (x.given ? x.v === ref.puzzle[i] : ref.puzzle[i] === 0)));
+  await sleep(900); // the board scrolls smoothly into view first
+  const fits = await page.evaluate(() => {
+    const g = document.querySelector('.sd-grid').getBoundingClientRect();
+    const hit = document.elementFromPoint(g.left + 10, g.top + 10);
+    return document.documentElement.scrollWidth <= innerWidth && g.right <= innerWidth && !!(hit && hit.closest('.sd-grid'));
+  });
+  check(`Sudoku ${tag}: grid fits and isn’t hidden under the header`, fits);
+
+  const clickCell = (i) => page.click(`.sd-cell:nth-child(${i + 1})`);
+  const givenIdx = ref.puzzle.findIndex((v) => v);
+  await clickCell(givenIdx);
+  await page.keyboard.press(String((ref.puzzle[givenIdx] % 9) + 1));
+  c = await cells();
+  check(`Sudoku ${tag}: clues can’t be changed`, c[givenIdx].v === ref.puzzle[givenIdx]);
+  const empties = ref.puzzle.map((v, i) => (v ? -1 : i)).filter((i) => i >= 0);
+  const e0 = empties[0];
+  const wrongDigit = (ref.solution[e0] % 9) + 1;
+  await clickCell(e0);
+  await page.keyboard.press(String(wrongDigit));
+  c = await cells();
+  check(`Sudoku ${tag}: a wrong number is marked and counted`, c[e0].wrong && (await page.$eval('.hud', (e) => e.textContent)).includes('1 mistake'));
+  await page.keyboard.press('Backspace');
+  c = await cells();
+  check(`Sudoku ${tag}: erase clears the cell`, c[e0].v === 0 && !c[e0].wrong);
+  await page.keyboard.press('n');
+  await page.keyboard.press('3');
+  await page.keyboard.press('7');
+  await page.keyboard.press('n');
+  c = await cells();
+  check(`Sudoku ${tag}: notes mode pencils in candidates`, c[e0].notes.replace(/\s/g, '') === '37', `(${c[e0].notes})`);
+  // Number pad entry (touch-style) on the next empty cell.
+  const e1 = empties[1];
+  await clickCell(e1);
+  await page.click(`.sd-num:nth-child(${ref.solution[e1]})`);
+  c = await cells();
+  check(`Sudoku ${tag}: number pad enters a number`, c[e1].v === ref.solution[e1] && !c[e1].wrong);
+  await page.click('.hud-btn.hint');
+  c = await cells();
+  const hinted = c.findIndex((x) => x.hinted);
+  check(`Sudoku ${tag}: hint fills a correct number`, hinted >= 0 && c[hinted].v === ref.solution[hinted] && (await page.$eval('.hud-btn.hint', (e) => e.textContent)).includes('1'));
+
+  await page.reload({ waitUntil: 'networkidle0' });
+  await page.waitForSelector('.sd-continue');
+  await page.click('.sd-continue .btn');
+  await page.waitForSelector('.sd-grid');
+  c = await cells();
+  check(`Sudoku ${tag}: progress survives a reload`, c[e1].v === ref.solution[e1] && c[hinted].hinted && (await page.$eval('.hud', (e) => e.textContent)).includes('1 mistake'));
+
+  // Solve the rest with the keyboard (arrow keys between cells).
+  c = await cells();
+  for (const i of empties) {
+    if (c[i].v === ref.solution[i]) continue;
+    await clickCell(i);
+    await page.keyboard.press(String(ref.solution[i]));
+  }
+  await page.waitForSelector('.results', { timeout: 4000 });
+  const res = await page.$eval('.results', (e) => e.textContent);
+  const data = (await progress(page)).web.sudoku;
+  check(`Sudoku ${tag}: completing the grid shows the result`, res.includes('Solved!') && res.includes('Mistakes'), res.slice(0, 60));
+  check(`Sudoku ${tag}: best time, daily completion and solved count are saved`, data.best.EASY > 0 && data.daily[today].EASY && data.solved === 1 && data.current === null, JSON.stringify(data).slice(0, 120));
+  await page.click('.results .btn-secondary');
+  await page.waitForSelector('.diff-option');
+  check(`Sudoku ${tag}: setup shows today’s puzzle as solved`, (await page.$eval('input[value="EASY"] + .box', (e) => e.textContent)).includes('Today’s puzzle solved'));
+  // Replaying today's puzzle doesn't count twice.
+  await page.click('.setup-actions .btn-primary');
+  await page.waitForSelector('.sd-grid');
+  c = await cells();
+  for (const i of empties) { await clickCell(i); await page.keyboard.press(String(ref.solution[i])); }
+  await page.waitForSelector('.results', { timeout: 4000 });
+  check(`Sudoku ${tag}: replaying today’s puzzle doesn’t add to the solved count`, (await progress(page)).web.sudoku.solved === 1);
+
+  // Arrow keys move the selection; a random Hard puzzle generates quickly.
+  await page.click('.results .btn-secondary');
+  await page.waitForSelector('.diff-option');
+  await page.evaluate(() => document.querySelector('input[value="HARD"]').click());
+  const t0 = Date.now();
+  await page.click('.setup-actions .btn-secondary');
+  await page.waitForSelector('.sd-grid');
+  const genMs = Date.now() - t0;
+  const sel = () => page.$eval('.sd-cell.selected', (e) => Array.prototype.indexOf.call(e.parentNode.children, e));
+  const s1 = await sel();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
+  const s2 = await sel();
+  check(`Sudoku ${tag}: arrow keys move the selection`, s2 === Math.floor(s1 / 9 + 1) % 9 * 9 + ((s1 % 9) + 1) % 9, `${s1}→${s2}`);
+  const givens = (await cells()).filter((x) => x.given).length;
+  check(`Sudoku ${tag}: random Hard puzzle is ready quickly`, genMs < 2500 && givens >= 22 && givens <= 32, `${genMs}ms, ${givens} clues`);
+  await page.goto(`${BASE}/play/`, { waitUntil: 'networkidle0' });
+  check(`Sudoku ${tag}: game card shows puzzles solved`, (await page.$eval('[data-best="SUDOKU"]', (e) => e.textContent)) === '1');
+  check(`Sudoku ${tag}: no page errors`, page.errors.length === 0, page.errors.join(' | '));
+  await page.ctx.close();
+}
+
+async function suiteWeb(browser) {
+  console.log('\nWEBSITE GAMES');
+  await suiteMerge(browser, 390);
+  await suiteMerge(browser, 1280);
+  await suiteDetective(browser);
+  await suiteSudoku(browser, 390);
+  await suiteSudoku(browser, 1280);
+  // Corrupt saved data must never break a game.
+  const page = await freshPage(browser, { width: 390, mobile: true });
+  await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
+  await page.evaluate(() => localStorage.setItem('bb-progress-v1', JSON.stringify({ web: { merge: { current: { grid: 'x', score: -4 } }, detective: { days: { 1: 5 }, stats: 'bad' }, sudoku: { current: { puzzle: '1', level: 'NOPE' }, best: { EASY: 'fast' } } } })));
+  let stray = '';
+  for (const slug of ['2048', 'word-detective', 'sudoku']) {
+    await page.goto(`${BASE}/play/${slug}/`, { waitUntil: 'networkidle0' });
+    await sleep(200);
+    if (/\b(null|undefined|NaN)\b/.test(await page.$eval('#game', (e) => e.innerText))) stray += ` ${slug}`;
+  }
+  check('website games never show null/undefined/NaN', !stray, stray);
+  await page.goto(`${BASE}/play/`, { waitUntil: 'networkidle0' });
+  check('website games ignore corrupt saved data', page.errors.length === 0, page.errors.join(' | '));
+  await page.ctx.close();
+}
+
 (async () => {
   const browser = await puppeteer.launch({ executablePath: CHROME, args: ['--no-sandbox', '--headless=new'] });
   const only = process.argv[2];
@@ -600,11 +992,16 @@ async function suiteSite(browser) {
     if (!only || only === 'site') await suiteSite(browser);
     if (!only || only === 'daily') await suiteDaily(browser);
     if (!only || only === 'games') await suiteGames(browser);
+    if (!only || only === 'web') await suiteWeb(browser);
   } catch (e) {
     failures.push(`crashed: ${e.stack}`);
     console.error(e);
   }
   await browser.close();
+  if (thirdParty.length) {
+    console.log(`\n⚠ ${thirdParty.length} uncaught error(s) from third-party scripts (not counted as failures):`);
+    for (const t of new Set(thirdParty)) console.log(`  - ${t}`);
+  }
   console.log(`\n${failures.length ? '✗' : '✓'} ${passed} passed, ${failures.length} failed`);
   if (failures.length) {
     for (const f of failures) console.log(`  - ${f}`);

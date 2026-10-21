@@ -1,7 +1,7 @@
 /** Every page on the site. The build renders each one through layout.js. */
 import { esc, icon, playBadge, playButton, adSlot, AD_SLOTS } from './layout.js';
 import { GAME_COPY } from './content.js';
-import { GAMES, LIBRARY, Category, DIFFICULTIES } from '../assets/js/engine/models.js';
+import { ALL_GAMES, LIBRARY, Category, DIFFICULTIES } from '../assets/js/engine/models.js';
 import {
   SITE_URL, SITE_NAME, APP_NAME, PLAY_URL, PLAY_DEV_URL, APP_PRIVACY_URL, CONTACT_EMAIL, playUrl, DISCLAIMER,
 } from '../assets/js/lib/site.js';
@@ -82,7 +82,7 @@ const appLd = {
 const FAQ = [
   ['Is BrainBuzz free?', 'Yes. The browser games on this site are free to play, with no sign-up. The website shows some ads to help keep it free. The BrainBuzz Android app is also free to download from Google Play.'],
   ['Do my browser scores sync with the Android app?', 'No. Best scores you set here are saved only in this browser on this device. The Android app keeps its own progress on your phone, including XP, levels, streaks and achievements. The website and the app don’t share any data.'],
-  ['Are these the same games as in the app?', 'Yes. It’s the same seven games plus the Daily Challenge, with the same rules, difficulty levels and scoring. On any given date the Daily Challenge has the same 12 puzzles as the app.'],
+  ['Are these the same games as in the app?', 'The seven timed games and the Daily Challenge are the same as in the app, with the same rules, difficulty levels and scoring. On any given date the Daily Challenge has the same 12 puzzles as the app. 2048 Merge Challenge, Word Detective and Sudoku Daily are extra games you’ll only find on this website.'],
   ['What extra do I get in the Android app?', 'The app tracks your progress over time: XP and levels, daily streaks with a training calendar, three daily missions, 20 achievements, detailed stats and an optional daily reminder. In the app, Easy is always free and Medium and Hard unlock by watching a short optional video. On this website every level is free.'],
   ['Can I play on iPhone, iPad or a computer?', 'Yes, in your browser. Every game on this site works on phones, tablets and computers, with touch, mouse or keyboard. The BrainBuzz app itself is available for Android on Google Play.'],
   ['Do I need an account?', 'No. There are no accounts on the website or in the app. The website saves your best scores in your browser’s local storage, and you can clear them at any time by clearing this site’s data.'],
@@ -126,7 +126,7 @@ function homePage() {
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <span class="eyebrow"><span class="dot">${icon('bolt')}</span>8 free brain games · No sign-up</span>
+      <span class="eyebrow"><span class="dot">${icon('bolt')}</span>11 free brain games · No sign-up</span>
       <h1>Give Your Brain a Daily <span class="text-gradient">Buzz</span> 🧠</h1>
       <p class="lead">Quick brain games, memory challenges, logic puzzles and maths games you can play right here in your browser. Pick a game, choose your level and try to beat your best.</p>
       <div class="btn-row">
@@ -154,7 +154,7 @@ function homePage() {
 
 <section class="section" id="games"><div class="wrap">
   <div class="section-head reveal"><p class="kicker">Play in your browser</p><h2>Pick your brain game</h2>
-    <p>Seven games across memory, logic, numbers, visual skills and words. Every one has three difficulty levels with their own rules.</p></div>
+    <p>Ten games across memory, logic, numbers, visual skills and words: quick timed rounds with three difficulty levels, plus 2048, Sudoku and a daily word puzzle.</p></div>
   <div class="game-grid">${LIBRARY.map((g) => gameCard(g)).join('')}</div>
   <div class="btn-row" style="justify-content:center;margin-top:28px"><a class="btn btn-secondary btn-lg" href="/play/">${icon('apps')}<span>See all games</span></a></div>
 </div></section>
@@ -215,7 +215,7 @@ function playHub() {
 <section class="page-hero"><div class="wrap">
   ${breadcrumbs([['Home', '/'], ['Play Games']])}
   <h1>Play free brain games</h1>
-  <p class="lead">Seven games and a Daily Challenge, ready to play in your browser. Choose a game, pick Easy, Medium or Hard, and see how far you can get.</p>
+  <p class="lead">Ten games and a Daily Challenge, ready to play in your browser. Choose a game, pick your level and see how far you can get.</p>
 </div></section>
 <section class="section-tight" style="padding-top:0"><div class="wrap">${dailyCard()}</div></section>
 <section class="section-tight"><div class="wrap">
@@ -231,14 +231,14 @@ ${ctaBand('play_hub_cta')}`;
     path: '/play/',
     file: 'play/index.html',
     title: 'Play Free Brain Games Online: Memory, Logic & Maths',
-    description: 'Seven free brain games and a Daily Challenge: Memory Matrix, Memory Match, Logic Path, Odd One Out, Word Scramble, Number Sequence Master and Quick Math Rush.',
+    description: 'Ten free brain games and a Daily Challenge, from Memory Matrix and Logic Path to 2048 Merge Challenge, Word Detective and Sudoku Daily. No sign-up.',
     body,
     jsonLd: [
       breadcrumbLd([['Home', '/'], ['Play Games', '/play/']]),
       {
         '@context': 'https://schema.org',
         '@type': 'ItemList',
-        itemListElement: GAMES.map((g, i) => ({ '@type': 'ListItem', position: i + 1, name: g.title, url: `${SITE_URL}/play/${g.slug}/` })),
+        itemListElement: ALL_GAMES.map((g, i) => ({ '@type': 'ListItem', position: i + 1, name: g.title, url: `${SITE_URL}/play/${g.slug}/` })),
       },
     ],
     priority: '0.9',
@@ -248,7 +248,8 @@ ${ctaBand('play_hub_cta')}`;
 function gamePage(g) {
   const copy = GAME_COPY[g.type];
   const others = LIBRARY.filter((o) => o.type !== g.type).slice(0, 3);
-  const levels = g.type === 'DAILY'
+  const ruleList = g.type === 'DAILY' || g.levels === false;
+  const levels = ruleList
     ? `<ul>${g.rules().map((r) => `<li>${r}</li>`).join('')}</ul>`
     : DIFFICULTIES.map((d) => `<h3 style="font-size:1rem;margin:12px 0 4px">${d.label}</h3><ul>${g.rules(d.name).map((r) => `<li>${r}</li>`).join('')}</ul>`).join('');
   const body = `
@@ -265,8 +266,8 @@ function gamePage(g) {
     <div class="card"><h2>How to play</h2><ol>${g.howToPlay.map((s) => `<li>${s}</li>`).join('')}</ol></div>
     <div class="card"><h2>Scoring</h2><p class="muted" style="margin:0 0 8px">${copy.scoring}</p><p class="muted" style="margin:0">${copy.hint}</p></div>
     <div class="app-mini">
-      <div class="row"><img class="logo" src="/assets/img/logo-192.webp" width="52" height="52" alt="" loading="lazy"><h2>Play ${g.title} on Android</h2></div>
-      <p>Earn XP, build daily streaks and unlock achievements in the free BrainBuzz app.</p>
+      <div class="row"><img class="logo" src="/assets/img/logo-192.webp" width="52" height="52" alt="" loading="lazy"><h2>${g.web ? 'More brain games on Android' : `Play ${g.title} on Android`}</h2></div>
+      <p>${g.web ? `${g.title} is a website game. The free BrainBuzz app has seven more brain games, with XP, daily streaks and achievements.` : 'Earn XP, build daily streaks and unlock achievements in the free BrainBuzz app.'}</p>
       <div>${playBadge(`game_side_${g.slug}`)}</div>
     </div>
   </aside>
@@ -275,7 +276,7 @@ function gamePage(g) {
   <div class="prose">
     <h2>About ${g.title}</h2>
     ${copy.intro.map((p) => `<p>${p}</p>`).join('')}
-    <h2>${g.type === 'DAILY' ? 'The rules' : 'Difficulty levels'}</h2>
+    <h2>${ruleList ? 'The rules' : 'Difficulty levels'}</h2>
     ${levels}
     <h2>Tips</h2>
     <ul>${copy.tips.map((t) => `<li>${t}</li>`).join('')}</ul>
@@ -316,6 +317,7 @@ ${ctaBand(`game_cta_${g.slug}`)}`;
 function aboutPage() {
   const rows = [
     ['7 brain games and the Daily Challenge', 'yes', 'yes'],
+    ['2048 Merge Challenge, Word Detective and Sudoku Daily', 'yes', 'no'],
     ['Easy, Medium and Hard', 'All free', 'Easy free; Medium and Hard after a short optional video'],
     ['Hints', 'Free', 'Some free; more with optional videos'],
     ['Best scores', 'In this browser', 'yes'],
@@ -330,14 +332,14 @@ function aboutPage() {
 <section class="page-hero"><div class="wrap">
   ${breadcrumbs([['Home', '/'], ['About']])}
   <h1>About BrainBuzz</h1>
-  <p class="lead">BrainBuzz: Daily Challenge is a colourful collection of quick brain games for Android. This website brings the same games to your browser.</p>
+  <p class="lead">BrainBuzz: Daily Challenge is a colourful collection of quick brain games for Android. This website brings the same games to your browser, plus three puzzles of its own.</p>
 </div></section>
 <section class="section-tight" style="padding-top:0"><div class="wrap prose">
   <h2>Think today. Better tomorrow.</h2>
   <p>BrainBuzz is built around short, satisfying puzzles you can finish in a few minutes: a memory test on the bus, a logic puzzle with your coffee, a maths sprint before work. Every game has three difficulty levels, and each level changes the rules, not just the speed.</p>
   <p>The Daily Challenge gives everyone the same 12 puzzles each day, so you can compare scores with friends whether they play in the app or here on the web.</p>
   <h2>The games</h2>
-  <ul>${GAMES.map((g) => `<li><a href="/play/${g.slug}/"><strong>${g.title}</strong></a> (${Category[g.category]}): ${esc(g.tagline)}.</li>`).join('')}</ul>
+  <ul>${ALL_GAMES.map((g) => `<li><a href="/play/${g.slug}/"><strong>${g.title}</strong></a> (${Category[g.category]}): ${esc(g.tagline)}.</li>`).join('')}</ul>
   <h2>Designed to be fair and friendly</h2>
   <ul>
     <li><strong>Every game explains itself.</strong> Each one starts with a short how-to and shows the rule or the right answer when you miss, so you learn as you go.</li>
@@ -346,7 +348,7 @@ function aboutPage() {
     <li><strong>No accounts.</strong> Your scores stay in your browser. The website is supported by ads from Google; the <a href="/privacy/">Privacy Policy</a> explains how they use cookies.</li>
   </ul>
   <h2>Website and Android app</h2>
-  <p>The browser games use the same rules, levels and scoring as the app. The app adds everything that tracks your progress over time.</p>
+  <p>The seven timed games and the Daily Challenge use the same rules, levels and scoring as the app. 2048 Merge Challenge, Word Detective and Sudoku Daily are only on the website. The app adds everything that tracks your progress over time.</p>
 </div>
 <div class="wrap" style="margin-top:8px">
   <div class="card" style="max-width:760px;overflow-x:auto">
@@ -527,5 +529,5 @@ function notFoundPage() {
 }
 
 export function allPages() {
-  return [homePage(), playHub(), ...GAMES.map(gamePage), aboutPage(), privacyPage(), contactPage(), notFoundPage()];
+  return [homePage(), playHub(), ...ALL_GAMES.map(gamePage), aboutPage(), privacyPage(), contactPage(), notFoundPage()];
 }

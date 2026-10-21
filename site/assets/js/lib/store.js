@@ -1,5 +1,6 @@
 /**
- * Browser-only progress: best scores, last difficulty and Daily Challenge results.
+ * Browser-only progress: best scores, last difficulty, Daily Challenge results and, under `web`,
+ * the website-only games' records (2048 board, Word Detective days and stats, Sudoku progress).
  * Lives in localStorage on this device only; it never syncs with the Android app.
  * Every access is guarded so private windows or blocked storage just mean "no saved data".
  */
@@ -10,9 +11,13 @@ function read() {
   try {
     const raw = localStorage.getItem(KEY);
     const data = raw ? JSON.parse(raw) : null;
-    if (data && typeof data === 'object') return { bests: {}, last: {}, daily: {}, ...data };
+    if (data && typeof data === 'object') {
+      const out = { bests: {}, last: {}, daily: {}, web: {}, ...data };
+      if (!out.web || typeof out.web !== 'object' || Array.isArray(out.web)) out.web = {};
+      return out;
+    }
   } catch (e) { /* unavailable or corrupt: start fresh */ }
-  return { bests: {}, last: {}, daily: {} };
+  return { bests: {}, last: {}, daily: {}, web: {} };
 }
 
 function write(data) {
@@ -66,5 +71,20 @@ export function recordDaily(epochDay, result) {
   data.daily[epochDay] = result;
   // Keep only recent days so storage stays tiny.
   for (const day of Object.keys(data.daily)) if (Number(day) < epochDay - DAILY_DAYS_KEPT) delete data.daily[day];
+  return write(data);
+}
+
+/**
+ * A website-only game's own record (always an object). Each game validates what it reads,
+ * so missing, old or hand-edited data just means starting fresh.
+ */
+export function webData(game) {
+  const v = read().web[game];
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+
+export function saveWebData(game, value) {
+  const data = read();
+  data.web[game] = value;
   return write(data);
 }

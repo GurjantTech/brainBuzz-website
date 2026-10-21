@@ -1,6 +1,6 @@
 /** Page shell shared by every page: <head> with SEO tags, header, footer. */
 import { SITE_URL, SITE_NAME, APP_NAME, playUrl, PLAY_DEV_URL, TAGLINE, DISCLAIMER } from '../assets/js/lib/site.js';
-import { GAMES } from '../assets/js/engine/models.js';
+import { ALL_GAMES } from '../assets/js/engine/models.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -107,7 +107,7 @@ function footer() {
       </div>
       <div>
         <h2>Games</h2>
-        <ul>${GAMES.map((g) => `<li><a href="/play/${g.slug}/">${g.title}</a></li>`).join('')}</ul>
+        <ul>${ALL_GAMES.map((g) => `<li><a href="/play/${g.slug}/">${g.title}</a></li>`).join('')}</ul>
       </div>
       <div>
         <h2>BrainBuzz</h2>
