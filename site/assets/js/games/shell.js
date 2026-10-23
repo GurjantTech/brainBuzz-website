@@ -1,14 +1,17 @@
 /**
  * The frame every game runs in, mirroring the app's GameViewModel / GameScaffold:
- * difficulty picker → 3-2-1 countdown → play (HUD, hints, pause, optional round clock) → results.
+ * level picker (1–100) → 3-2-1 countdown → play (HUD, hints, pause, optional round clock) → results with stars.
+ * `ctx.difficulty` is a level from engine/levels.js (the Daily Challenge keeps the app's Medium).
  *
  * A game module exports { roundTimeMs?(difficulty), create(ctx) }. create() returns a game with
  * start(), hintAvailable(), applyHint() and optionally onTick(ms), onTimeUp(), clockRunning(), onKey(e).
  */
 import { h, icon, clear, formatNumber, formatDuration, untilMidnight, prefersReducedMotion } from '../lib/dom.js';
 import { statGrid, appCta, confetti as confettiIn } from './kit.js';
+import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 import { KRandom } from '../lib/random.js';
-import { DIFFICULTIES, difficultyOf, accuracyOf, resultTitle } from '../engine/models.js';
+import { difficultyOf, accuracyOf, resultTitle } from '../engine/models.js';
+import { MAX_LEVEL, levelOf, levelKey, parseLevelKey, starsFor, passAccuracy, passText, MATH_PASS_CORRECT } from '../engine/levels.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
 
@@ -16,7 +19,10 @@ const NOTHING_TO_HINT = 'Nothing to hint right now.';
 
 export function mountShell(stage, meta, impl) {
   const isDaily = meta.type === 'DAILY';
-  let difficulty = isDaily ? difficultyOf('MEDIUM') : difficultyOf(store.lastDifficulty(meta.type)) || DIFFICULTIES[0];
+  const progress = () => store.levelProgress(meta.type, MAX_LEVEL);
+  let difficulty = isDaily
+    ? difficultyOf('MEDIUM')
+    : levelOf(Math.min(parseLevelKey(store.lastDifficulty(meta.type)) || progress().unlocked, progress().unlocked));
   let session = null;
   let rafId = 0;
 
@@ -45,29 +51,35 @@ export function mountShell(stage, meta, impl) {
   function setupView() {
     endSession();
     if (isDaily) return dailySetup();
-    const options = DIFFICULTIES.map((d) => {
-      const best = store.bestScore(meta.type, d.name);
-      const input = h('input', { type: 'radio', name: `diff-${meta.type}`, value: d.name, checked: d === difficulty });
-      input.addEventListener('change', () => {
-        difficulty = d;
-        startBtn.querySelector('span').textContent = `Start ${d.label} game`;
-      });
-      return h('label.diff-option', {},
-        input,
-        h('span.box', {},
-          h('span.diff-title', {}, d.label, h('span.check', {}, icon('check'))),
-          h('ul', {}, meta.rules(d.name).map((r) => h('li', {}, r))),
-          h('span.diff-best', {}, best === null ? `No score on ${d.label} yet. Set one!` : `Your best: ${formatNumber(best)}`)));
+    const { unlocked, stars } = progress();
+    if (difficulty.level > unlocked) difficulty = levelOf(unlocked);
+    const detail = h('div');
+    const start = startButton('', () => startGame());
+    const renderDetail = () => {
+      const level = difficulty.level;
+      const best = store.bestScore(meta.type, levelKey(level));
+      const earned = stars[level] || 0;
+      const next = level < MAX_LEVEL ? `unlock Level ${level + 1}` : 'finish all 100 levels';
+      const banner = best === null
+        ? { tone: 'todo', icon: 'lock', title: `No score on Level ${level} yet. Set one!`, text: `${passText(meta.type)} to ${next}.` }
+        : {
+          tone: 'done', icon: 'emoji_events', title: `Your best: ${formatNumber(best)} points`,
+          text: earned >= 3 ? 'Three stars! Replay to beat your best score.' : `Replay to beat it${earned ? ' and earn more stars' : ` and ${next}`}.`,
+        };
+      clear(detail).append(levelDetail({ level, stars: earned, rules: meta.rules(difficulty), banner }));
+      start.querySelector('.lv-start-btn span').textContent = `${earned ? 'Replay' : 'Start'} Level ${level}`;
+    };
+    const picker = levelPicker({
+      unlocked, stars, selected: difficulty.level,
+      onChange: (level) => { difficulty = levelOf(level); renderDetail(); },
     });
-    const startBtn = h('button.btn.btn-primary.btn-lg', { type: 'button', onclick: () => startGame() },
-      icon('play_arrow'), h('span', {}, `Start ${difficulty.label} game`));
-    show(
-      h('div.setup-head', {}, h('h2', {}, 'Choose your difficulty')),
-      h('fieldset.diff-grid', {}, h('legend.visually-hidden', {}, 'Difficulty'), options),
-      h('div.setup-actions', {}, startBtn),
-      h('p.setup-note', {}, icon('check_circle'),
-        h('span', {}, 'Every level is free on the web, with no sign-up. Best scores are saved in this browser only.')),
-    );
+    renderDetail();
+    show(h('div.lv-setup', {},
+      levelHeader({ unlocked, stars }),
+      picker,
+      detail,
+      start,
+      levelNote('Levels start easy and get harder. Pass a level to unlock the next one. Progress and best scores are saved in this browser only.')));
   }
 
   function dailySetup() {
@@ -119,7 +131,7 @@ export function mountShell(stage, meta, impl) {
 
   function startGame() {
     endSession();
-    if (!isDaily) store.rememberDifficulty(meta.type, difficulty.name);
+    if (!isDaily) store.rememberDifficulty(meta.type, levelKey(difficulty.level));
     const s = {
       alive: true,
       phase: 'countdown',
@@ -366,13 +378,15 @@ export function mountShell(stage, meta, impl) {
     s.phase = 'finished';
     s.waiters.length = 0;
     const full = { hintsUsed: s.hintsUsed, moves: 0, bestCombo: 0, answerPattern: '', ...outcome };
-    let record = { isBest: false, previous: null };
+    let record = { isBest: false, previous: null, level: null };
     if (isDaily) {
       store.recordDaily(s.epochDay, {
         score: full.score, correct: full.correct, total: full.total, bestCombo: full.bestCombo, pattern: full.answerPattern,
       });
     } else {
-      record = store.recordScore(meta.type, difficulty.name, full.score);
+      record = store.recordScore(meta.type, levelKey(difficulty.level), full.score);
+      const stars = starsFor(meta.type, accuracyOf(meta.type, full.correct, full.total, full.moves), full);
+      record.level = store.recordLevel(meta.type, difficulty.level, stars, MAX_LEVEL);
     }
     const delay = s.game.finishDelay ?? 400;
     setTimeout(() => {
@@ -397,25 +411,38 @@ export function mountShell(stage, meta, impl) {
       ['bolt', `×${o.bestCombo}`, 'Best combo'],
       ['timer', time, 'Time'],
     ];
-    const celebrate = record.isBest || accuracy >= 1;
+    const lv = record.level;
+    const passed = lv && lv.stars > 0;
+    const celebrate = record.isBest || accuracy >= 1 || passed;
     const bestLine = isDaily
       ? h('span.pill.pill-success', {}, icon('check_circle'), 'Today’s challenge complete')
       : record.isBest
         ? h('span.pill.pill-amber', {}, icon('emoji_events'), record.previous === null ? `First score on ${difficulty.label}!` : 'New personal best!')
         : h('span.pill', {}, icon('emoji_events'), `Your best on ${difficulty.label}: ${formatNumber(record.previous)}`);
 
+    const playLevel = (level) => { difficulty = levelOf(level); startGame(); };
+    const hasNext = passed && difficulty.level < MAX_LEVEL;
     const actions = isDaily
       ? [h('a.btn.btn-primary', { href: '/play/' }, icon('apps'), h('span', {}, 'Play another game'))]
       : [
-        h('button.btn.btn-primary', { type: 'button', onclick: () => startGame() }, icon('refresh'), h('span', {}, 'Play again')),
-        h('button.btn.btn-secondary', { type: 'button', onclick: () => { setupView(); focusStage(); } }, icon('trending_up'), h('span', {}, 'Change difficulty')),
+        hasNext ? h('button.btn.btn-primary.next-level', { type: 'button', onclick: () => playLevel(difficulty.level + 1) },
+          icon('skip_next'), h('span', {}, `Next: Level ${difficulty.level + 1}`)) : null,
+        h(`button.btn.${hasNext ? 'btn-secondary' : 'btn-primary'}`, { type: 'button', onclick: () => startGame() },
+          icon('refresh'), h('span', {}, passed ? 'Replay level' : 'Try again')),
+        h('button.btn.btn-secondary', { type: 'button', onclick: () => { setupView(); focusStage(); } }, icon('trending_up'), h('span', {}, 'All levels')),
         h('a.btn.btn-ghost', { href: '/play/' }, icon('arrow_back'), h('span', {}, 'All games')),
       ];
+    const levelLine = lv && h('div.level-result', {},
+      starRow(lv.stars, 'big'),
+      h('p', {}, passed
+        ? `${difficulty.label} passed${lv.unlockedNext ? `. Level ${difficulty.level + 1} unlocked!` : difficulty.level === MAX_LEVEL ? '. You beat the last level!' : '.'}`
+        : `Not passed yet. ${meta.type === 'MATH' ? `You need ${MATH_PASS_CORRECT}+ right answers and` : 'You need'} ${Math.round(passAccuracy(meta.type) * 100)}% accuracy.`));
 
     const heading = h('h2', { tabindex: '-1' }, resultTitle(accuracy));
     show(h('div.results', {},
       bestLine,
       heading,
+      levelLine,
       h('div.big-score', {}, formatNumber(o.score), h('small', {}, isDaily ? 'points' : `points · ${difficulty.label}`)),
       statGrid(stats),
       o.answerPattern ? h('div', { style: { display: 'grid', gap: '8px', justifyItems: 'center' } },

@@ -4,7 +4,7 @@ import { gameByType } from '../engine/models.js';
 import { h, icon, clear } from '../lib/dom.js';
 
 const loaders = {
-  DAILY: () => import('./quiz.js').then((m) => m.quizGame('DAILY')),
+  DAILY: () => import('./daily.js').then((m) => m.default),
   MATH: () => import('./quiz.js').then((m) => m.quizGame('MATH')),
   SEQUENCE: () => import('./quiz.js').then((m) => m.quizGame('SEQUENCE')),
   MATRIX: () => import('./matrix.js').then((m) => m.default),

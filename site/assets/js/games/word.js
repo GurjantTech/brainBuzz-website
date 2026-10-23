@@ -1,6 +1,6 @@
 /** Word Scramble (WordScrambleViewModel.kt / WordScrambleScreen.kt). Tap or type to play. */
 import { h, icon, clear } from '../lib/dom.js';
-import { wordRound, wordRoundTimeMs, clueVisibleByDefault, isCorrect, WORDS_PER_ROUND } from '../engine/words.js';
+import { wordRound, wordRoundTimeMs, clueVisibleByDefault, isCorrect, wordsPerRound } from '../engine/words.js';
 import { word as wordScore } from '../engine/scoring.js';
 
 const FAST_WORD_MS = 25000;
@@ -12,6 +12,7 @@ export default {
   create(ctx) {
     const ui = ctx.ui;
     const d = ctx.difficulty;
+    const total = wordsPerRound(d);
     let wrongTotal = 0;
     let wrongThisWord = 0;
     let hintsThisWord = 0;
@@ -46,7 +47,7 @@ export default {
         clueVisible: clueVisibleByDefault(d), status: 'typing',
       });
       render(true);
-      ctx.announce(`Word ${index + 1} of ${WORDS_PER_ROUND}. ${w.answer.length} letters: ${st.tiles.join(' ')}.`);
+      ctx.announce(`Word ${index + 1} of ${total}. ${w.answer.length} letters: ${st.tiles.join(' ')}.`);
     }
 
     function render(rebuild = false) {
@@ -82,7 +83,7 @@ export default {
       }
 
       ui.score(st.score);
-      ui.progress(`Word ${st.index + 1}/${WORDS_PER_ROUND}`);
+      ui.progress(`Word ${st.index + 1}/${total}`);
       if (st.status === 'wrong') ui.feedback('Not quite. Tap letters to rearrange them.', 'bad');
       else if (st.status === 'solved') ui.feedback(`${w.answer}! +${st.lastPoints}`, 'good');
       else if (st.status === 'skipped') ui.feedback(`The word was ${w.answer}.`, 'info');
@@ -164,9 +165,9 @@ export default {
     function finishGame() {
       if (ended) return;
       ended = true;
-      while (results.length < WORDS_PER_ROUND) results += '0';
+      while (results.length < total) results += '0';
       ctx.finish({
-        score: st.score, correct: st.solved, total: WORDS_PER_ROUND, durationMs: ctx.activePlayMs,
+        score: st.score, correct: st.solved, total, durationMs: ctx.activePlayMs,
         moves: wrongTotal, answerPattern: results,
       });
     }

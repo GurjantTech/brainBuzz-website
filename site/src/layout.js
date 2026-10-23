@@ -4,16 +4,25 @@ import { ALL_GAMES } from '../assets/js/engine/models.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+const SPRITE = '/assets/img/icons.svg';
 export const icon = (name, cls = '') =>
-  `<svg class="icon${cls ? ` ${cls}` : ''}" aria-hidden="true" focusable="false"><use href="/assets/img/icons.svg#${name}"></use></svg>`;
+  `<svg class="icon${cls ? ` ${cls}` : ''}" aria-hidden="true" focusable="false"><use href="${SPRITE}#${name}"></use></svg>`;
 
 /** Official "Get it on Google Play" badge (Google brand guidelines: use as supplied). */
 export const playBadge = (placement) =>
   `<a class="play-badge" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">` +
   `<img src="/assets/img/google-play-badge.webp" width="646" height="250" alt="Get it on Google Play" loading="lazy" decoding="async"></a>`;
 
-export const playButton = (placement, label = 'Get BrainBuzz on Google Play', cls = 'btn btn-secondary btn-lg') =>
-  `<a class="${cls}" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">${icon('android')}<span>${label}</span></a>`;
+/** The four-colour Google Play triangle, for the home page's Play button. */
+const PLAY_LOGO = '<svg class="play-logo" viewBox="0 0 24 26" aria-hidden="true" focusable="false">'
+  + '<path d="M1.3.7 13.6 13 1.3 25.3c-.4-.3-.6-.9-.6-1.5V2.2c0-.6.2-1.2.6-1.5z" fill="#4285f4"/>'
+  + '<path d="M17.7 8.9 13.6 13 1.3.7c.5-.4 1.3-.5 2.1-.1z" fill="#34a853"/>'
+  + '<path d="M17.7 17.1 3.4 25.4c-.8.4-1.6.3-2.1-.1L13.6 13z" fill="#ea4335"/>'
+  + '<path d="M22.3 11.5c1.1.6 1.1 2.4 0 3l-4.6 2.6-4.1-4.1 4.1-4.1z" fill="#fbbc04"/></svg>';
+
+/** A button to the app on Google Play; [playLogo] shows the Play triangle instead of the Android icon. */
+export const playButton = (placement, label = 'Get BrainBuzz on Google Play', cls = 'btn btn-secondary btn-lg', { playLogo = false } = {}) =>
+  `<a class="${cls}" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">${playLogo ? PLAY_LOGO : icon('android')}<span>${label}</span></a>`;
 
 const NAV = [
   { href: '/', label: 'Home' },
@@ -79,7 +88,7 @@ function header(path) {
       <button class="icon-btn theme-toggle" type="button" aria-label="Switch to dark theme" data-theme-toggle>
         ${icon('dark_mode', 'i-light')}${icon('light_mode', 'i-dark')}
       </button>
-      <a class="btn btn-primary btn-sm header-cta" href="${esc(playUrl('header'))}" rel="noopener" target="_blank" data-play="header">${icon('android')}<span>Get the app</span></a>
+      <a class="btn btn-primary btn-sm header-cta" href="${esc(playUrl('header'))}" rel="noopener" target="_blank" data-play="header"><span class="play-logo-chip">${PLAY_LOGO}</span><span>Get the app</span></a>
       <button class="icon-btn nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav" data-nav-toggle>${icon('menu')}</button>
     </div>
   </div>
@@ -136,7 +145,7 @@ function footer() {
 
 /**
  * @param page {{ path, title, description, body, jsonLd?, ogImage?, noindex?, scripts?, bodyClass?, fullTitle?, ads? }}
- * @param build {{ cssVersion, jsVersion, scriptHashes, adPreview? }}
+ * @param build {{ cssVersion, jsVersion, iconsVersion, scriptHashes, adPreview? }}
  */
 export function renderPage(page, build) {
   const url = SITE_URL + page.path;
@@ -163,8 +172,11 @@ export function renderPage(page, build) {
     "form-action 'self'",
     "object-src 'none'",
   ].join('; ');
+  // The sprite URL carries its content hash, like the CSS and JS, so a browser or CDN holding an older
+  // sprite never pairs it with new pages (new icons would render blank). Scripts read it from html[data-icons].
+  const sprite = `${SPRITE}?v=${build.iconsVersion}`;
   return `<!doctype html>
-<html lang="en" class="no-js">
+<html lang="en" class="no-js" data-icons="${sprite}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -208,5 +220,5 @@ ${footer()}
 ${scripts}
 </body>
 </html>
-`;
+`.split(`href="${SPRITE}#`).join(`href="${sprite}#`);
 }

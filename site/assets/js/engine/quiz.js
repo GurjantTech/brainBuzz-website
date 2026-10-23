@@ -4,7 +4,8 @@
  * same seed yields the same questions.
  */
 import { KRandom } from '../lib/random.js';
-import { Difficulty, DIFFICULTIES } from './models.js';
+import { DIFFICULTIES } from './models.js';
+import { levelOf, mathLevel, sequenceTimeMs, MATH_ADAPT_RANGE, MATH_ADAPT_STEP, MAX_LEVEL } from './levels.js';
 
 export const QuestionKind = { MATH: 'MATH', SEQUENCE: 'SEQUENCE' };
 export const KIND_LABEL = { MATH: 'Quick Math', SEQUENCE: 'Pattern' };
@@ -42,6 +43,7 @@ export class MathGenerator {
   }
 
   generate(difficulty) {
+    if (difficulty.level) return this.forLevel(mathLevel(difficulty.level));
     const r = this.random;
     switch (difficulty.name) {
       case 'EASY':
@@ -65,6 +67,18 @@ export class MathGenerator {
           case 3: return this.square();
           default: return this.subtract([100, 500]);
         }
+    }
+  }
+
+  /** Website levels: the sums allowed at this level, with numbers that grow level by level. */
+  forLevel({ ops, top, low, table, square }) {
+    switch (ops[this.random.nextIntUntil(ops.length)]) {
+      case 'add': return this.add([low, top], [low, top]);
+      case 'subtract': return this.subtract([low, top + 10]);
+      case 'multiply': return this.multiply([2, table], [2, table]);
+      case 'divide': return this.divide([2, table], [2, table]);
+      case 'twoStep': return this.twoStep();
+      default: return this.square(square);
     }
   }
 
@@ -109,8 +123,8 @@ export class MathGenerator {
     return this.question(`${x} × ${y} − ${z}`, ans, `${x} × ${y} = ${x * y}, then − ${z} = ${ans}`);
   }
 
-  square() {
-    const x = this.random.intIn(11, 25);
+  square([lo, hi] = [11, 25]) {
+    const x = this.random.intIn(lo, hi);
     return this.question(`${x}²`, x * x, `${x} × ${x} = ${x * x}`, [(x - 1) * (x - 1), (x + 1) * (x + 1)]);
   }
 
@@ -125,6 +139,7 @@ export class MathGenerator {
 /**
  * Quick Math Rush difficulty that follows the player: 4 right in a row step up a level,
  * 2 misses in a row step down, never more than one level from the chosen difficulty.
+ * On a website level the steps are MATH_ADAPT_STEP levels, within MATH_ADAPT_RANGE of the chosen one.
  */
 const STEP_UP_AFTER = 4;
 const STEP_DOWN_AFTER = 2;
@@ -136,8 +151,14 @@ export class AdaptiveMath {
     this.current = chosen;
     this.streak = 0;
     this.misses = 0;
-    this.lo = Math.max(chosen.ordinal - 1, 0);
-    this.hi = Math.min(chosen.ordinal + 1, DIFFICULTIES.length - 1);
+    this.levels = Boolean(chosen.level);
+    if (this.levels) {
+      this.lo = Math.max(chosen.level - MATH_ADAPT_RANGE, 1);
+      this.hi = Math.min(chosen.level + MATH_ADAPT_RANGE, MAX_LEVEL);
+    } else {
+      this.lo = Math.max(chosen.ordinal - 1, 0);
+      this.hi = Math.min(chosen.ordinal + 1, DIFFICULTIES.length - 1);
+    }
   }
 
   next() {
@@ -157,8 +178,12 @@ export class AdaptiveMath {
   }
 
   shift(by) {
-    const target = Math.min(Math.max(this.current.ordinal + by, this.lo), this.hi);
-    this.current = DIFFICULTIES[target];
+    if (this.levels) {
+      this.current = levelOf(Math.min(Math.max(this.current.level + by * MATH_ADAPT_STEP, this.lo), this.hi));
+    } else {
+      const target = Math.min(Math.max(this.current.ordinal + by, this.lo), this.hi);
+      this.current = DIFFICULTIES[target];
+    }
     this.streak = 0;
     this.misses = 0;
   }
@@ -295,27 +320,13 @@ export class SequenceGenerator {
   }
 }
 
-export const DAILY_QUESTIONS = 12;
-export const DAILY_QUESTION_TIME_MS = 20000;
-
-/** Same questions for everyone on a given day; difficulty ramps up through the round. */
-export function dailyQuestions(epochDay) {
-  const random = KRandom.ofSeed(BigInt(epochDay) * 7919n + 104729n);
-  const math = new MathGenerator(random);
-  const seq = new SequenceGenerator(random);
-  return Array.from({ length: DAILY_QUESTIONS }, (_, i) => {
-    const difficulty = i < 4 ? Difficulty.EASY : i < 8 ? Difficulty.MEDIUM : Difficulty.HARD;
-    return i % 2 === 0 ? math.next(difficulty) : seq.next(difficulty);
-  });
-}
-
 /** LocalDate.now().toEpochDay() in the viewer's own time zone, as the app does on the phone. */
 export function todayEpochDay(now = new Date()) {
   return Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
 }
 
-/** QuizConfig factories: the shared quiz engine runs all three with different settings. */
-export function quizConfig(type, difficulty, { epochDay } = {}) {
+/** QuizConfig factories: the shared quiz engine runs Quick Math and Number Sequence (the Daily Challenge is engine/daily.js). */
+export function quizConfig(type, difficulty) {
   if (type === 'MATH') {
     const adaptive = new AdaptiveMath(difficulty);
     return {
@@ -323,18 +334,11 @@ export function quizConfig(type, difficulty, { epochDay } = {}) {
       question: () => adaptive.next(), recordAnswer: (c) => adaptive.record(c),
     };
   }
-  if (type === 'SEQUENCE') {
-    const gen = new SequenceGenerator();
-    const perQuestion = { EASY: 25000, MEDIUM: 20000, HARD: 15000 }[difficulty.name];
-    return {
-      type, difficulty, totalQuestions: 10, roundTimeMs: null, questionTimeMs: perQuestion,
-      question: () => gen.next(difficulty), recordAnswer: () => {},
-    };
-  }
-  const questions = dailyQuestions(epochDay);
+  const gen = new SequenceGenerator();
+  const perQuestion = difficulty.level ? sequenceTimeMs(difficulty.level) : { EASY: 25000, MEDIUM: 20000, HARD: 15000 }[difficulty.name];
   return {
-    type: 'DAILY', difficulty: Difficulty.MEDIUM, totalQuestions: DAILY_QUESTIONS, roundTimeMs: null,
-    questionTimeMs: DAILY_QUESTION_TIME_MS, question: (i) => questions[i], recordAnswer: () => {},
+    type, difficulty, totalQuestions: 10, roundTimeMs: null, questionTimeMs: perQuestion,
+    question: () => gen.next(difficulty), recordAnswer: () => {},
   };
 }
 

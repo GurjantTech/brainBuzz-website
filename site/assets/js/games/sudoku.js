@@ -1,26 +1,35 @@
 /**
- * Sudoku Daily (website only). Today's puzzle per level (same for everyone on a date) or a random one.
+ * Sudoku Daily (website only). Levels 1–100 (Level N is the same puzzle for everyone; solving one unlocks
+ * the next) plus today's puzzle (same for everyone on a date). Older saves may hold a random puzzle.
  * Wrong numbers are marked straight away; hints fill a correct cell. Progress is saved as you play.
  */
 import { h, icon, clear, formatDuration, prefersReducedMotion } from '../lib/dom.js';
 import * as S from '../engine/sudoku.js';
 import { DIFFICULTIES, difficultyOf } from '../engine/models.js';
+import { MAX_LEVEL, levelOf, levelKey, sudokuStars } from '../engine/levels.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
 import { statGrid, appCta, confetti, liveRegion, ownsKeys } from './kit.js';
+import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 
 const KEY = 'sudoku';
+const TYPE = 'SUDOKU';
 const DAYS_KEPT = 14;
-const LEVELS = DIFFICULTIES.map((d) => d.name);
-const isLevel = (v) => LEVELS.includes(v);
+/** Today's puzzle keeps the Medium daily puzzle everyone already gets on this date. */
+const DAILY_TIER = 'MEDIUM';
+const TIERS = DIFFICULTIES.map((d) => d.name);
+const isTier = (v) => TIERS.includes(v);
+const isLevel = (v) => Number.isInteger(v) && v >= 1 && v <= MAX_LEVEL;
 const posInt = (v) => (Number.isInteger(v) && v >= 0 ? v : 0);
+const bestKey = (g) => (g.mode === 'level' ? levelKey(g.level) : g.mode === 'daily' ? 'DAILY' : g.level);
+const progress = () => store.levelProgress(TYPE, MAX_LEVEL);
 
 function load() {
   const d = store.webData(KEY);
   const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
   const best = {};
-  for (const lv of LEVELS) if (Number.isFinite(obj(d.best)[lv]) && obj(d.best)[lv] > 0) best[lv] = obj(d.best)[lv];
-  return { current: restore(d.current), best, solved: posInt(d.solved), daily: obj(d.daily), last: isLevel(d.last) ? d.last : 'EASY' };
+  for (const [k, v] of Object.entries(obj(d.best))) if (/^(L\d{1,3}|DAILY|EASY|MEDIUM|HARD)$/.test(k) && Number.isFinite(v) && v > 0) best[k] = v;
+  return { current: restore(d.current), best, solved: posInt(d.solved), daily: obj(d.daily), last: isLevel(d.last) ? d.last : null };
 }
 
 function save(patch) {
@@ -30,7 +39,8 @@ function save(patch) {
 
 /** A saved game is only used if it's internally consistent; otherwise it's ignored. */
 function restore(c) {
-  if (!c || typeof c !== 'object' || !isLevel(c.level) || !['daily', 'random'].includes(c.mode)) return null;
+  if (!c || typeof c !== 'object') return null;
+  if (!(c.mode === 'level' ? isLevel(c.level) : ['daily', 'random'].includes(c.mode) && isTier(c.level))) return null;
   const puzzle = S.fromText(c.puzzle);
   const solution = S.fromText(c.solution);
   const values = S.fromText(c.values);
@@ -58,12 +68,13 @@ function mount(stage, meta) {
   const { el: live, announce } = liveRegion();
   const view = h('div.stage-inner');
   clear(stage).append(view, live);
-  let level = load().last;
+  let level = Math.min(load().last || progress().unlocked, progress().unlocked);
   let game = null; // the puzzle being played
   let stopTimer = () => {};
 
   const show = (...nodes) => { stopTimer(); clear(view).append(...nodes.filter(Boolean)); };
-  const levelLabel = (lv) => difficultyOf(lv).label;
+  const levelLabel = (g) => (g.mode === 'level' ? `Level ${g.level}` : g.mode === 'daily' ? 'Daily puzzle' : difficultyOf(g.level).label);
+  const modeLabel = (g, today) => (g.mode === 'level' ? 'level puzzle' : g.mode === 'daily' ? (g.day === today ? 'today’s puzzle' : 'an earlier daily puzzle') : 'random puzzle');
   const dateLabel = () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
   // ---------- Setup ----------
@@ -72,41 +83,45 @@ function mount(stage, meta) {
     game = null;
     const data = load();
     const today = todayEpochDay();
-    const doneToday = data.daily[today] || {};
-    const primary = h('button.btn.btn-primary.btn-lg', { type: 'button', onclick: () => newGame('daily') }, icon('calendar_month'), h('span', {}));
-    const secondary = h('button.btn.btn-secondary.btn-lg', { type: 'button', onclick: () => newGame('random') }, icon('shuffle'), h('span', {}));
-    const label = () => {
-      primary.lastChild.textContent = doneToday[level] ? `Replay today’s ${levelLabel(level)}` : `Play today’s ${levelLabel(level)}`;
-      secondary.lastChild.textContent = `Random ${levelLabel(level)} puzzle`;
+    const doneToday = (data.daily[today] || {})[DAILY_TIER];
+    const { unlocked, stars } = progress();
+    if (level > unlocked) level = unlocked;
+    const detail = h('div');
+    const start = startButton('', () => newGame('level'));
+    const renderDetail = () => {
+      const best = data.best[levelKey(level)];
+      const earned = stars[level] || 0;
+      const next = level < MAX_LEVEL ? `unlock Level ${level + 1}` : 'finish all 100 levels';
+      const banner = best
+        ? { tone: 'done', icon: 'emoji_events', title: `Best time: ${formatDuration(best)}`, text: earned >= 3 ? 'Three stars! Replay to beat your time.' : 'Replay with no mistakes and no hints for three stars.' }
+        : { tone: 'todo', icon: 'lock', title: `No time on Level ${level} yet. Set one!`, text: `Solve this puzzle to ${next}.` };
+      clear(detail).append(levelDetail({ level, stars: earned, rules: meta.rules(levelOf(level)), banner }));
+      start.querySelector('.lv-start-btn span').textContent = `${earned ? 'Replay' : 'Start'} Level ${level}`;
     };
-    const options = DIFFICULTIES.map((d) => {
-      const input = h('input', { type: 'radio', name: 'sudoku-level', value: d.name, checked: d.name === level });
-      input.addEventListener('change', () => { level = d.name; label(); });
-      const done = doneToday[d.name];
-      return h('label.diff-option', {}, input, h('span.box', {},
-        h('span.diff-title', {}, d.label, h('span.check', {}, icon('check'))),
-        h('ul', {}, meta.rules(d.name).slice(0, 2).map((r) => h('li', {}, r))),
-        h('span.diff-best', {}, done ? `Today’s puzzle solved in ${formatDuration(done.ms)}` : data.best[d.name] ? `Best time: ${formatDuration(data.best[d.name])}` : 'No time set yet')));
-    });
-    label();
+    const picker = levelPicker({ unlocked, stars, selected: level, onChange: (lv) => { level = lv; renderDetail(); } });
+    renderDetail();
     const cont = data.current;
     show(
       cont ? h('div.sd-continue', {},
         h('div', {}, h('strong', {}, 'Continue your puzzle'),
-          h('span.muted', {}, ` ${levelLabel(cont.level)} · ${cont.mode === 'daily' ? (cont.day === today ? 'today’s puzzle' : 'an earlier daily puzzle') : 'random puzzle'} · ${formatDuration(cont.elapsed)}`)),
+          h('span.muted', {}, ` ${levelLabel(cont)} · ${modeLabel(cont, today)} · ${formatDuration(cont.elapsed)}`)),
         h('button.btn.btn-primary', { type: 'button', onclick: () => play(cont) }, icon('play_arrow'), h('span', {}, 'Continue'))) : null,
-      h('div.setup-head', {}, h('h2', {}, 'Choose your puzzle'), h('span.pill', {}, icon('calendar_month'), dateLabel())),
-      h('fieldset.diff-grid', {}, h('legend.visually-hidden', {}, 'Difficulty'), options),
-      h('div.setup-actions', {}, primary, secondary),
-      h('p.setup-note', {}, icon('check_circle'), h('span', {},
-        'Today’s puzzles are the same for everyone and change at midnight. Your progress and best times are saved in this browser only.')),
+      h('div.lv-setup', {},
+        levelHeader({ unlocked, stars }),
+        picker,
+        detail,
+        start,
+        h('div.lv-extra', {},
+          h('button.btn.btn-secondary.sd-daily', { type: 'button', onclick: () => newGame('daily') }, icon('calendar_month'),
+            h('span', {}, doneToday ? `Replay today’s puzzle (${formatDuration(doneToday.ms)})` : `Today’s puzzle · ${dateLabel()}`))),
+        levelNote('Levels start easy and get harder; solve one to unlock the next. Today’s puzzle is the same for everyone and changes at midnight. Progress and best times are saved in this browser only.')),
     );
   }
 
   function newGame(mode) {
     let made;
     try {
-      made = S.generate(level, mode === 'daily' ? S.dailySeed(todayEpochDay(), level) : null);
+      made = mode === 'level' ? S.generate(level, S.levelSeed(level)) : S.generate(DAILY_TIER, S.dailySeed(todayEpochDay(), DAILY_TIER));
     } catch (e) {
       show(h('div.stage-loading', {}, icon('cancel'), h('p', {}, 'Sorry, a puzzle couldn’t be created. Please try again.'),
         h('button.btn.btn-primary', { type: 'button', onclick: () => setupView() }, icon('refresh'), h('span', {}, 'Back'))));
@@ -114,7 +129,7 @@ function mount(stage, meta) {
     }
     save({ last: level });
     play({
-      mode, level, day: mode === 'daily' ? todayEpochDay() : null,
+      mode, level: mode === 'level' ? level : DAILY_TIER, day: mode === 'daily' ? todayEpochDay() : null,
       puzzle: made.puzzle, solution: made.solution, values: made.puzzle.slice(),
       notes: new Array(81).fill(0), hinted: new Array(81).fill(false), mistakes: 0, hints: 0, elapsed: 0,
     });
@@ -151,7 +166,7 @@ function mount(stage, meta) {
 
     show(
       h('div.hud', {},
-        h('div.hud-score', {}, h('small', {}, g.mode === 'daily' ? 'TODAY’S PUZZLE' : 'RANDOM PUZZLE'), h('strong', { style: { fontSize: '1.3rem' } }, levelLabel(g.level))),
+        h('div.hud-score', {}, h('small', {}, { level: 'SUDOKU', daily: 'TODAY’S PUZZLE', random: 'RANDOM PUZZLE' }[g.mode]), h('strong', { style: { fontSize: '1.3rem' } }, levelLabel(g))),
         h('span.pill.hud-time', { 'aria-label': 'Time' }, icon('timer'), timeEl),
         h('span.pill', {}, icon('cancel'), mistakesEl),
         h('div.hud-actions', {}, hintBtn, backBtn)),
@@ -336,7 +351,7 @@ function mount(stage, meta) {
     if (selected >= 0) cells[selected].focus({ preventScroll: true });
     const top = stage.getBoundingClientRect().top;
     if (top < 0 || top > innerHeight * 0.4) stage.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-    announce(`${levelLabel(g.level)} Sudoku. ${g.values.filter((v) => !v).length} empty cells.`);
+    announce(`${levelLabel(g)} Sudoku. ${g.values.filter((v) => !v).length} empty cells.`);
   }
 
   // ---------- Results ----------
@@ -344,10 +359,11 @@ function mount(stage, meta) {
   function finish(g) {
     const data = load();
     const ms = Math.round(g.elapsed);
-    const prevBest = data.best[g.level] || null;
+    const key = bestKey(g);
+    const prevBest = data.best[key] || null;
     const isBest = prevBest === null || ms < prevBest;
     const best = { ...data.best };
-    if (isBest) best[g.level] = ms;
+    if (isBest) best[key] = ms;
     const daily = { ...data.daily };
     let firstToday = false;
     if (g.mode === 'daily' && g.day !== null) {
@@ -357,25 +373,29 @@ function mount(stage, meta) {
       daily[g.day] = forDay;
       for (const d of Object.keys(daily)) if (Number(d) < g.day - DAYS_KEPT) delete daily[d];
     }
-    // A replayed daily puzzle doesn't add to the solved count again.
-    const solved = data.solved + (g.mode === 'random' || firstToday ? 1 : 0);
+    const lv = g.mode === 'level' ? store.recordLevel(TYPE, g.level, sudokuStars(g.mistakes, g.hints), MAX_LEVEL) : null;
+    // A replayed daily or level puzzle doesn't add to the solved count again.
+    const solved = data.solved + (g.mode === 'random' || firstToday || (lv && !lv.previousStars) ? 1 : 0);
     save({ current: null, best, daily, solved });
+    const next = lv && g.level < MAX_LEVEL ? g.level + 1 : null;
 
     if (!prefersReducedMotion()) confetti(stage);
     const heading = h('h2', { tabindex: '-1' }, g.mistakes === 0 && g.hints === 0 ? 'Flawless!' : 'Solved!');
     show(h('div.results', {},
-      isBest ? h('span.pill.pill-amber', {}, icon('emoji_events'), prevBest === null ? `First ${levelLabel(g.level)} time!` : 'New best time!')
-        : h('span.pill', {}, icon('emoji_events'), `Best ${levelLabel(g.level)} time: ${formatDuration(prevBest)}`),
+      isBest ? h('span.pill.pill-amber', {}, icon('emoji_events'), prevBest === null ? `First ${levelLabel(g)} time!` : 'New best time!')
+        : h('span.pill', {}, icon('emoji_events'), `Best ${levelLabel(g)} time: ${formatDuration(prevBest)}`),
       heading,
-      h('div.big-score', {}, formatDuration(ms), h('small', {}, `${levelLabel(g.level)} · ${g.mode === 'daily' ? 'today’s puzzle' : 'random puzzle'}`)),
+      lv ? h('div.level-result', {}, starRow(lv.stars, 'big'),
+        h('p', {}, `Level ${g.level} solved${lv.unlockedNext ? `. Level ${next} unlocked!` : g.level === MAX_LEVEL ? '. You beat the last level!' : '.'}`)) : null,
+      h('div.big-score', {}, formatDuration(ms), h('small', {}, `${levelLabel(g)} · ${modeLabel(g, g.day)}`)),
       statGrid([
         ['cancel', String(g.mistakes), 'Mistakes'],
         ['lightbulb', String(g.hints), 'Hints'],
         ['task_alt', String(solved), 'Puzzles solved'],
       ]),
       h('div.btn-row', {},
-        h('button.btn.btn-primary', { type: 'button', onclick: () => { level = g.level; newGame('random'); } }, icon('shuffle'), h('span', {}, `New ${levelLabel(g.level)} puzzle`)),
-        h('button.btn.btn-secondary', { type: 'button', onclick: () => setupView() }, icon('trending_up'), h('span', {}, 'Change level')),
+        next ? h('button.btn.btn-primary.next-level', { type: 'button', onclick: () => { level = next; newGame('level'); } }, icon('skip_next'), h('span', {}, `Next: Level ${next}`)) : null,
+        h(`button.btn.${next ? 'btn-secondary' : 'btn-primary'}`, { type: 'button', onclick: () => setupView() }, icon('trending_up'), h('span', {}, 'All levels')),
         h('a.btn.btn-ghost', { href: '/play/' }, icon('arrow_back'), h('span', {}, 'All games'))),
       appCta(`results_${meta.slug}`),
       h('p.results-note', {}, 'Times and progress are saved in this browser only. Sudoku Daily is a website game and isn’t in the Android app.')));

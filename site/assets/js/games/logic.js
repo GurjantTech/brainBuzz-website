@@ -16,7 +16,7 @@ function svg(tag, attrs) {
 }
 
 /** The pipe drawn unrotated; the whole drawing turns, which keeps the animation smooth. */
-function pipeDrawing(kind) {
+export function pipeDrawing(kind) {
   const root = svg('svg', { viewBox: '0 0 100 100', 'aria-hidden': 'true', focusable: 'false' });
   for (const d of [Dir.N, Dir.E, Dir.S, Dir.W]) {
     if (kind.baseMask & d) {
@@ -29,7 +29,7 @@ function pipeDrawing(kind) {
   return root;
 }
 
-function describe(tile) {
+export function describe(tile) {
   const mask = rotateMask(tile.kind.baseMask, tile.rotation);
   const openings = [Dir.N, Dir.E, Dir.S, Dir.W].filter((d) => mask & d).map((d) => DIR_NAMES[d]);
   return `${tile.kind.label} pipe, open ${openings.join(' and ')}`;

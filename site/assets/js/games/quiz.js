@@ -13,7 +13,7 @@ export function quizGame(type) {
   return {
     hintDescription: type === 'MATH' ? 'Removes two wrong answers.' : 'Removes two wrong answers and reveals the pattern.',
     create(ctx) {
-      const config = quizConfig(type, ctx.difficulty, { epochDay: ctx.epochDay });
+      const config = quizConfig(type, ctx.difficulty);
       const sprint = config.totalQuestions === null;
       const ui = ctx.ui;
       const st = {
@@ -34,7 +34,7 @@ export function quizGame(type) {
 
       function render() {
         const q = st.question;
-        kind.textContent = type === 'DAILY' ? `${KIND_LABEL[q.kind]} · ${q.level.label}` : KIND_LABEL[q.kind];
+        kind.textContent = KIND_LABEL[q.kind];
         text.textContent = q.prompt;
         clear(rule);
         if (st.revealRule && st.phase === 'playing') rule.append(h('span.pill.pill-amber', {}, icon('lightbulb'), `Hint: ${q.explanation}`));

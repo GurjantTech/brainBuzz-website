@@ -1,6 +1,6 @@
 /** Site chrome: theme toggle, mobile menu, header shadow, reveal-on-scroll, game cards, the Daily card and ad units. */
 import { topScore, dailyResult, webData } from './lib/store.js';
-import { formatNumber, untilMidnight, icon } from './lib/dom.js';
+import { formatNumber, untilMidnight, icon, ICONS } from './lib/dom.js';
 import { todayEpochDay } from './engine/quiz.js';
 
 const root = document.documentElement;
@@ -31,7 +31,7 @@ if (toggle && menu) {
     menu.classList.toggle('open', open);
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
-    toggle.querySelector('use')?.setAttribute('href', `/assets/img/icons.svg#${open ? 'close' : 'menu'}`);
+    toggle.querySelector('use')?.setAttribute('href', `${ICONS}#${open ? 'close' : 'menu'}`);
   };
   toggle.addEventListener('click', () => set(!menu.classList.contains('open')));
   menu.addEventListener('click', (e) => { if (e.target.closest('a')) set(false); });
@@ -101,6 +101,9 @@ if (filters && grid) {
     filters.querySelectorAll('[data-filter]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
     const cat = btn.dataset.filter;
     grid.querySelectorAll('[data-category]').forEach((card) => { card.hidden = !!cat && card.dataset.category !== cat; });
+    // The "Keep playing" decoration only fills the gap left by the full list.
+    const deco = grid.querySelector('[data-grid-deco]');
+    if (deco) deco.hidden = !!cat;
   });
 }
 
@@ -111,11 +114,20 @@ if (dailyCards.length) {
   const done = dailyResult(today);
   const dateText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   dailyCards.forEach((card) => {
-    card.querySelector('[data-daily-date]').textContent = dateText;
+    const part = (sel) => card.querySelector(sel);
+    part('[data-daily-date]').textContent = dateText;
     if (done) {
-      card.querySelector('[data-daily-status]').textContent = `Done today: ${done.correct}/${done.total} correct · ${formatNumber(done.score)} pts`;
-      card.querySelector('[data-daily-next]').hidden = false;
-      const cta = card.querySelector('[data-daily-cta] span');
+      const status = part('[data-daily-status]');
+      if (status) status.textContent = `Done today: ${done.correct}/${done.total} correct · ${formatNumber(done.score)} pts`;
+      // The /play/ banner shows the result as a pill and swaps the date for the countdown.
+      const donePill = part('[data-daily-done]');
+      if (donePill) {
+        donePill.lastChild.textContent = `Done today: ${done.correct}/${done.total} correct`;
+        donePill.hidden = false;
+        part('[data-daily-today]').hidden = true;
+      }
+      part('[data-daily-next]').hidden = false;
+      const cta = part('[data-daily-cta] span');
       if (cta) cta.textContent = 'View today’s result';
     }
   });

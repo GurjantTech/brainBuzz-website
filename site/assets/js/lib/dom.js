@@ -1,6 +1,7 @@
 /** Tiny DOM helpers shared by the site script and the games. */
 
-export const ICONS = '/assets/img/icons.svg';
+/** The icon sprite. Pages carry its content-hashed URL in html[data-icons], so a cached older sprite is never used. */
+export const ICONS = (typeof document !== 'undefined' && document.documentElement.dataset.icons) || '/assets/img/icons.svg';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** <svg class="icon"><use href="…#name"></svg>, decorative by default. */

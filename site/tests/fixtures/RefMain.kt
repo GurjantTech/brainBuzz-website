@@ -12,6 +12,18 @@ fun item(i: OddItem) = when (i) {
     is OddItem.Letter -> "\"L:${i.char}:${i.mirrored}\""
 }
 
+fun board(p: PathPuzzle) =
+    "{\"size\":${p.size},\"sr\":${p.startRow},\"er\":${p.endRow},\"tiles\":${p.tiles.map { "\"${it.kind.name}:${it.rotation}\"" }},\"path\":${p.solutionPath},\"par\":${p.par}}"
+
+fun stage(s: DailyStage): String = when (s) {
+    is DailyStage.Choice -> "{\"k\":${q(s.kind.name)},\"q\":${ql(s.question)}}"
+    is DailyStage.Odd -> "{\"k\":\"ODD\",\"items\":${s.puzzle.items.joinToString(",", "[", "]") { item(it) }},\"odd\":${s.puzzle.oddIndex},\"c\":${s.puzzle.columns},\"e\":${q(s.puzzle.explanation)}}"
+    is DailyStage.Word -> "{\"k\":\"WORD\",\"w\":${q(s.word.answer)},\"l\":${q(s.word.letters.joinToString(""))}}"
+    is DailyStage.Matrix -> "{\"k\":\"MATRIX\",\"p\":${s.pattern}}"
+    is DailyStage.Memory -> "{\"k\":\"MEMORY\",\"c\":${s.cards.map { it.symbol }}}"
+    is DailyStage.Logic -> "{\"k\":\"LOGIC\",\"b\":${board(s.puzzle)}}"
+}
+
 fun main() {
     val out = StringBuilder()
     fun line(key: String, v: String) { out.append("{\"k\":${q(key)},\"v\":$v}\n") }
@@ -30,9 +42,9 @@ fun main() {
         line("rng:$seed", "{\"ints\":$ints,\"bounded\":$bounded,\"ranged\":$ranged,\"pow2\":$pow2,\"bools\":$bools,\"floats\":${floats.map { it.toDouble() }},\"shuffled\":$shuffled,\"range\":$range}")
     }
 
-    // Daily challenge sets.
-    for (day in listOf(0L, 19000L, 20000L, 20381L, 20382L, 20383L, 20400L, 20747L, 20748L, 21000L)) {
-        line("daily:$day", QuizConfig.dailyQuestions(day).joinToString(",", "[", "]") { ql(it) })
+    // Daily challenge sets (12 puzzles from all seven games).
+    for (day in listOf(0L, 19000L, 20000L, 20381L, 20382L, 20383L, 20400L, 20747L, 20748L, 21000L) + (20749L..20779L)) {
+        line("daily:$day", DailyMix.forDay(day).joinToString(",", "[", "]") { stage(it) })
     }
 
     for (seed in 1L..6L) for (d in Difficulty.entries) {

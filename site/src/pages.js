@@ -1,26 +1,13 @@
 /** Every page on the site. The build renders each one through layout.js. */
 import { esc, icon, playBadge, playButton, adSlot, AD_SLOTS } from './layout.js';
 import { GAME_COPY } from './content.js';
-import { ALL_GAMES, LIBRARY, Category, DIFFICULTIES } from '../assets/js/engine/models.js';
+import { brainMascot, trophy, gameIcon, goldStar, sparkleSvg, featureIcon, lightBulb, numberBlock } from '../assets/js/lib/art.js';
+import { ALL_GAMES, LIBRARY, Category, SAMPLE_LEVELS, ruleText } from '../assets/js/engine/models.js';
 import {
-  SITE_URL, SITE_NAME, APP_NAME, PLAY_URL, PLAY_DEV_URL, APP_PRIVACY_URL, CONTACT_EMAIL, playUrl, DISCLAIMER,
+  SITE_URL, SITE_NAME, APP_NAME, PLAY_URL, PLAY_DEV_URL, APP_PRIVACY_URL, CONTACT_EMAIL, playUrl, DISCLAIMER, MORE_APPS, appUrl,
 } from '../assets/js/lib/site.js';
 
 const CATEGORY_ICON = { MEMORY: 'psychology', LOGIC: 'extension', NUMBERS: 'calculate', VISUAL: 'visibility', WORDS: 'abc' };
-
-const SCREENS = [
-  { n: 1, alt: 'BrainBuzz app home screen with a streak card, the Daily Challenge and brain games' },
-  { n: 2, alt: 'Build your streak: the weekly streak tracker and streak milestones in the BrainBuzz app' },
-  { n: 3, alt: 'Track your progress: level, total XP, games played, accuracy and personal bests' },
-  { n: 4, alt: 'Challenge yourself daily: a Daily Challenge result with score, accuracy and XP earned' },
-  { n: 5, alt: 'Train your brain anywhere: a Number Sequence question in the BrainBuzz app' },
-  { n: 6, alt: 'BrainBuzz games: number puzzles, quick maths, memory games and logic challenges' },
-];
-
-const screen = (n, cls = '', eager = false) => {
-  const s = SCREENS[n - 1];
-  return `<img src="/assets/img/screens/store-${n}.webp" width="540" height="${n === 4 ? 810 : 959}" alt="${esc(s.alt)}"${eager ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async"${cls ? ` class="${cls}"` : ''}>`;
-};
 
 const gameArt = (g, cls = '') => `<span class="game-art${cls ? ` ${cls}` : ''}" style="--c:${g.color}">${icon(g.icon)}</span>`;
 
@@ -30,22 +17,6 @@ export function gameCard(g, headingTag = 'h3') {
   <p>${esc(g.tagline)}</p>
   <span class="foot"><span class="cat-chip">${icon(CATEGORY_ICON[g.category])}${Category[g.category]}</span><span class="best-chip" data-best="${g.type}">New</span></span>
 </a>`;
-}
-
-function dailyCard(headingTag = 'h2') {
-  return `<div class="daily-card reveal" data-daily-card>
-  <div style="position:relative;z-index:1;display:grid;gap:14px">
-    <div class="daily-head"><span class="bubble-lg">${icon('calendar_month')}</span>
-      <div><${headingTag}>Daily Challenge</${headingTag}><p data-daily-status>12 mixed puzzles, new every day</p></div></div>
-    <p>Quick maths and number patterns that ramp up from Easy to Hard. It’s the same 12 puzzles the BrainBuzz app has today, and a new set arrives at midnight.</p>
-    <div class="daily-meta">
-      <span class="pill pill-white">${icon('schedule')}<span data-daily-date>Today</span></span>
-      <span class="pill pill-white">${icon('timer')}20 seconds per puzzle</span>
-      <span class="pill pill-white" data-daily-next hidden>${icon('refresh')}<span>Next set in <span class="countdown" data-countdown>--:--:--</span></span></span>
-    </div>
-  </div>
-  <div class="daily-actions"><a class="btn btn-light btn-lg" href="/play/daily-challenge/" data-daily-cta>${icon('play_arrow')}<span>Play today’s challenge</span></a></div>
-</div>`;
 }
 
 function ctaBand(placement, title = 'Want more brain challenges?', text = 'Get BrainBuzz on Android to earn XP, keep your streak going and unlock achievements.') {
@@ -82,8 +53,8 @@ const appLd = {
 const FAQ = [
   ['Is BrainBuzz free?', 'Yes. The browser games on this site are free to play, with no sign-up. The website shows some ads to help keep it free. The BrainBuzz Android app is also free to download from Google Play.'],
   ['Do my browser scores sync with the Android app?', 'No. Best scores you set here are saved only in this browser on this device. The Android app keeps its own progress on your phone, including XP, levels, streaks and achievements. The website and the app don’t share any data.'],
-  ['Are these the same games as in the app?', 'The seven timed games and the Daily Challenge are the same as in the app, with the same rules, difficulty levels and scoring. On any given date the Daily Challenge has the same 12 puzzles as the app. 2048 Merge Challenge, Word Detective and Sudoku Daily are extra games you’ll only find on this website.'],
-  ['What extra do I get in the Android app?', 'The app tracks your progress over time: XP and levels, daily streaks with a training calendar, three daily missions, 20 achievements, detailed stats and an optional daily reminder. In the app, Easy is always free and Medium and Hard unlock by watching a short optional video. On this website every level is free.'],
+  ['Are these the same games as in the app?', 'The seven timed games and the Daily Challenge are the same as in the app, with the same rules and scoring. The app has Easy, Medium and Hard; on the website each of these games (and Sudoku) has 100 levels instead, with the same kinds of puzzles getting harder step by step. On any given date the Daily Challenge has the same 12 puzzles as the app. 2048 Merge Challenge, Word Detective and Sudoku Daily are extra games you’ll only find on this website.'],
+  ['What extra do I get in the Android app?', 'The app tracks your progress over time: XP and levels, daily streaks with a training calendar, three daily missions, 20 achievements, detailed stats and an optional daily reminder. In the app, Easy is always free and Medium and Hard unlock by watching a short optional video. On this website all 100 levels are free; you unlock each one by passing the level before it.'],
   ['Can I play on iPhone, iPad or a computer?', 'Yes, in your browser. Every game on this site works on phones, tablets and computers, with touch, mouse or keyboard. The BrainBuzz app itself is available for Android on Google Play.'],
   ['Do I need an account?', 'No. There are no accounts on the website or in the app. The website saves your best scores in your browser’s local storage, and you can clear them at any time by clearing this site’s data.'],
   ['Will brain games make me smarter?', DISCLAIMER],
@@ -96,91 +67,103 @@ function faqSection() {
 </div></section>`;
 }
 
-const APP_FEATURES = [
-  ['bolt', 'XP and levels', 'Earn XP for every game, with a bonus for the Daily Challenge, and watch your level climb.'],
-  ['local_fire_department', 'Streaks and a training calendar', 'See every day you trained and keep your streak alive.'],
-  ['task_alt', 'Three daily missions', 'Small goals each day, with bonus XP when you complete them.'],
-  ['emoji_events', '20 achievements', 'Unlock badges such as Week Warrior, Math Whiz and Pathfinder.'],
-  ['bar_chart', 'Stats and personal bests', 'Accuracy by game, top scores and your recent games in one place.'],
-  ['notifications', 'Daily reminder', 'An optional nudge to play, at a time you choose.'],
-];
+/** A compact game card for the home page grid. */
+function homeCard(g) {
+  return `<a class="home-card reveal" href="/play/${g.slug}/" style="--c:${g.color};--cat:${CATEGORY_COLOR[g.category]}" data-game-card="${g.type}">
+  <span class="home-card-top">${gameIcon(g.type, 'home-card-icon')}${icon('chevron_right', 'chev')}</span>
+  <span class="home-card-text"><h3>${g.title}</h3><p>${esc(g.tagline)}</p></span>
+  <span class="foot"><span class="cat-chip">${icon(CATEGORY_ICON[g.category])}${Category[g.category]}</span><span class="best-chip" data-best="${g.type}">New</span></span>
+</a>`;
+}
 
-function appPromo(placement) {
-  return `<section class="section" id="app"><div class="wrap"><div class="promo reveal">
-  <div class="promo-grid">
-    <div>
-      <p class="kicker">BrainBuzz for Android</p>
-      <h2>Take the full BrainBuzz experience with you</h2>
-      <p>The browser games are a great warm-up. The free Android app remembers how you’re doing and gives you a reason to come back every day.</p>
-      <ul class="promo-list">${APP_FEATURES.map(([i, t, d]) => `<li><span class="tick">${icon(i)}</span><span><strong>${t}</strong><span>${d}</span></span></li>`).join('')}</ul>
-      <div class="btn-row" style="align-items:center">${playBadge(placement)}</div>
-      <p style="margin:14px 0 0;font-size:.9rem">No account needed. In the app, your progress is stored on your phone.</p>
-    </div>
-    <div class="shots" tabindex="0" aria-label="Screenshots of the BrainBuzz app">${[1, 2, 3, 4, 5].map((n) => `<figure>${screen(n)}</figure>`).join('')}</div>
+/** The wide Daily Challenge banner on the home page; main.js fills in today's date, result and countdown. */
+function homeDaily() {
+  return `<div class="home-daily reveal" data-daily-card>
+  <span class="home-daily-watermark" aria-hidden="true">${icon('calendar_month')}</span>
+  <span class="home-daily-icon">${icon('calendar_month')}</span>
+  <div class="home-daily-text">
+    <p class="home-daily-kicker">Daily Challenge</p>
+    <h2>12 puzzles. One daily challenge.</h2>
+    <p>12 hard puzzles from all seven games: maths, patterns, odd one out, words, memory and pipes. It’s the same set as the BrainBuzz app today, and a new set arrives at midnight.</p>
   </div>
-</div></div></section>`;
+  <ul class="home-daily-facts">
+    <li data-daily-done hidden>${icon('check_circle')}<span></span></li>
+    <li data-daily-today>${icon('calendar_month')}<span data-daily-date>Today</span></li>
+    <li>${icon('timer')}<span>20–60 seconds per puzzle</span></li>
+    <li data-daily-next hidden>${icon('refresh')}<span>Next set in <span class="countdown" data-countdown>--:--:--</span></span></li>
+  </ul>
+  <a class="hub-daily-cta" href="/play/daily-challenge/" data-daily-cta>${icon('play_arrow')}<span>Play today’s challenge</span>${icon('arrow_forward', 'arrow')}</a>
+</div>`;
 }
 
 function homePage() {
+  const strip = [
+    ['trophy', 'Build Your Streak', 'Play daily and keep it going'],
+    ['chart', 'Earn Stars and Levels', 'Get better with every game'],
+    ['target', 'Beat Your Best', 'Improve your scores over time'],
+    ['crown', 'Have Fun Daily', 'Quick, engaging brain breaks'],
+  ];
   const body = `
-<section class="hero">
-  <div class="wrap hero-grid">
-    <div class="hero-copy">
+<section class="home-hero">
+  <div class="wrap-wide home-hero-grid">
+    <div class="home-hero-copy">
       <span class="eyebrow"><span class="dot">${icon('bolt')}</span>11 free brain games · No sign-up</span>
-      <h1>Give Your Brain a Daily <span class="text-gradient">Buzz</span> 🧠</h1>
-      <p class="lead">Quick brain games, memory challenges, logic puzzles and maths games you can play right here in your browser. Pick a game, choose your level and try to beat your best.</p>
-      <div class="btn-row">
-        <a class="btn btn-primary btn-lg" href="/play/">${icon('play_arrow')}<span>Play Games Now</span></a>
-        ${playButton('hero')}
+      <h1><span class="home-h1-a">Train Your Brain.<svg class="home-burst" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><g stroke="#ffb000" stroke-width="4.5" stroke-linecap="round"><line x1="8" y1="6" x2="14" y2="16"/><line x1="18" y1="18" x2="30" y2="12"/><line x1="18" y1="28" x2="32" y2="28"/></g></svg></span>
+        <span class="home-h1-b">Play Every Day.</span></h1>
+      <p class="home-lead">Quick brain games, memory challenges, logic puzzles and maths games, free to play, right in your browser. Pick a game, choose your level and try to beat your best.</p>
+      <div class="home-actions">
+        <a class="home-btn primary" href="/play/">${icon('play_arrow')}<span>Play Games Now</span>${icon('arrow_forward', 'arrow')}</a>
+        ${playButton('hero', 'Get BrainBuzz on Google Play', 'home-btn light', { playLogo: true })}
       </div>
-      <ul class="hero-facts">
-        <li>${icon('check_circle')}Free to play</li>
-        <li>${icon('check_circle')}Easy, Medium and Hard</li>
-        <li>${icon('check_circle')}A new Daily Challenge every day</li>
+      <ul class="home-checks">
+        <li><span class="ok green">${icon('check')}</span>Free to play</li>
+        <li><span class="ok purple">${icon('shield')}</span>No sign-up</li>
+        <li><span class="ok amber">${icon('workspace_premium')}</span>A new daily challenge every day</li>
       </ul>
     </div>
-    <div class="hero-art">
-      <div class="phone phone-back left">${screen(2)}</div>
-      <div class="phone phone-back right">${screen(3)}</div>
-      <div class="phone phone-main">${screen(1, '', true)}</div>
-      <span class="float f1" aria-hidden="true"><span class="bubble" style="background:#4f5fe0">${icon('psychology')}</span>Memory games</span>
-      <span class="float f2" aria-hidden="true"><span class="bubble" style="background:#16825a">${icon('extension')}</span>Logic puzzles</span>
-      <span class="float f3" aria-hidden="true"><span class="bubble" style="background:#e06a1b">${icon('calculate')}</span>Quick maths</span>
+    <div class="home-art" aria-hidden="true">
+      <span class="home-blob"></span>
+      ${sparkleSvg('home-spark s1', '#ffc531')}${sparkleSvg('home-spark s2', '#ffc531')}${sparkleSvg('home-spark s3', '#ffc531')}${sparkleSvg('home-spark s4', '#ffc531')}${sparkleSvg('home-spark s5', '#ffc531')}${sparkleSvg('home-spark s6', '#c4b5fd')}
+      ${lightBulb('home-bulb')}
+      <div class="home-phone"><img src="/assets/img/screens/app-home.webp" width="540" height="1085" alt="" fetchpriority="high" decoding="async"></div>
+      ${numberBlock('1', '#9b6bff', '#5b3fe0', 'home-block b1')}${numberBlock('+', '#4fb3ff', '#2563eb', 'home-block b2')}${numberBlock('3', '#ffc04d', '#f08a00', 'home-block b3')}
+      ${brainMascot({ id: 'homeM', cls: 'home-mascot', star: false, cap: true, openEyes: true, arms: false })}
+      <span class="hand home-think">Think<br>Solve<br>Improve</span>
+      <svg class="home-think-arrow" viewBox="0 0 40 50" focusable="false"><path d="M30 4c6 14 2 30-16 40m0 0 2-11m-2 11 11-2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
   </div>
+  <div class="wrap-wide home-daily-wrap" id="daily">${homeDaily()}</div>
 </section>
 
-<section class="section-tight" id="daily"><div class="wrap">${dailyCard()}</div></section>
-
-<section class="section" id="games"><div class="wrap">
+<section class="home-games" id="games"><div class="wrap-wide">
   <div class="section-head reveal"><p class="kicker">Play in your browser</p><h2>Pick your brain game</h2>
-    <p>Ten games across memory, logic, numbers, visual skills and words: quick timed rounds with three difficulty levels, plus 2048, Sudoku and a daily word puzzle.</p></div>
-  <div class="game-grid">${LIBRARY.map((g) => gameCard(g)).join('')}</div>
-  <div class="btn-row" style="justify-content:center;margin-top:28px"><a class="btn btn-secondary btn-lg" href="/play/">${icon('apps')}<span>See all games</span></a></div>
+    <p>Ten games across memory, logic, numbers, visual skills and words: quick timed rounds with 100 levels each, plus 2048, Sudoku and a daily word puzzle.</p></div>
+  <div class="home-grid-wrap"><div class="home-grid">${LIBRARY.map(homeCard).join('')}</div></div>
+  <ul class="home-strip reveal">
+    ${strip.map(([ic, title, sub]) => `<li>${featureIcon(ic)}<span><strong>${title}</strong><span>${sub}</span></span></li>`).join('')}
+  </ul>
 </div></section>
 
 <section class="section-tight"><div class="wrap">
   <div class="section-head reveal"><p class="kicker">How it works</p><h2>Three steps to a sharper mind</h2></div>
   <div class="steps">
     <div class="card step reveal"><h3>Pick a game</h3><p>Memory, logic, numbers, visual or words. Each game takes just a few minutes.</p></div>
-    <div class="card step reveal"><h3>Choose your level</h3><p>Easy, Medium or Hard. Harder levels change the rules too, with longer patterns, hidden clues and trickier differences.</p></div>
-    <div class="card step reveal"><h3>Beat your best</h3><p>Faster answers and combos score more. Your best score for each level is saved in this browser.</p></div>
+    <div class="card step reveal"><h3>Climb the levels</h3><p>Start at level 1 and unlock the next level each time you pass. Higher levels change the rules too, with longer patterns, hidden clues and trickier differences.</p></div>
+    <div class="card step reveal"><h3>Beat your best</h3><p>Faster answers and combos score more. Your stars and best score for each level are saved in this browser.</p></div>
   </div>
 </div></section>
 
-${appPromo('home_promo')}
-
-<section class="section-tight"><div class="wrap">
-  <div class="section-head reveal"><p class="kicker">Why BrainBuzz</p><h2>Made for quick, happy brain breaks</h2></div>
-  <div class="feature-grid">
-    <div class="card feature reveal" style="--c:#ff8a3d"><span class="fi">${icon('timer')}</span><h3>Quick sessions</h3><p>Most games take one to three minutes, so they fit into any break.</p></div>
-    <div class="card feature reveal" style="--c:#6c4bf4"><span class="fi">${icon('apps')}</span><h3>Real variety</h3><p>Memory, logic, numbers, visual and word puzzles, all in one place.</p></div>
-    <div class="card feature reveal" style="--c:#16825a"><span class="fi">${icon('trending_up')}</span><h3>Levels that matter</h3><p>Hard brings ordered sequences, decoy pipes, hidden clues and subtler differences.</p></div>
-    <div class="card feature reveal" style="--c:#0fb5a6"><span class="fi">${icon('calendar_month')}</span><h3>Fresh every day</h3><p>The Daily Challenge changes at midnight, your time, so there’s always something new.</p></div>
-    <div class="card feature reveal" style="--c:#c73565"><span class="fi">${icon('shield')}</span><h3>No sign-up</h3><p>No accounts or personal details. Your best scores stay in this browser.</p></div>
-    <div class="card feature reveal" style="--c:#4ea8ff"><span class="fi">${icon('devices')}</span><h3>Plays anywhere</h3><p>Phone, tablet or desktop, with touch, mouse or keyboard.</p></div>
-  </div>
+<section class="home-apps" id="apps"><div class="wrap-wide">
+  <div class="section-head reveal"><p class="kicker">More from our team</p><h2>Explore Our Apps</h2>
+    <p>Simple, helpful apps for your phone, all free on Google Play.</p></div>
+  <div class="apps-grid">${MORE_APPS.map((a) => `<a class="app-card reveal" href="${esc(appUrl(a.id, 'home_more_apps'))}" rel="noopener" target="_blank" style="--c:${a.color}">
+    <img class="app-card-icon" src="/assets/img/apps/${a.icon}.webp" width="192" height="192" alt="" loading="lazy" decoding="async">
+    <span class="app-card-text"><span class="app-card-tag">${a.tag}</span><h3>${esc(a.name)}</h3><p>${esc(a.text)}</p></span>
+    <span class="app-card-cta">${icon('download')}Get it on Google Play${icon('arrow_forward', 'arrow')}</span>
+  </a>`).join('')}</div>
+  <div class="apps-more reveal"><a class="home-btn light" href="${PLAY_DEV_URL}" rel="noopener" target="_blank">${icon('apps')}<span>See all our apps on Google Play</span>${icon('arrow_forward', 'arrow')}</a></div>
 </div></section>
+
 ${adSlot(AD_SLOTS.home)}
 ${faqSection()}
 ${ctaBand('home_cta')}`;
@@ -200,8 +183,9 @@ ${ctaBand('home_cta')}`;
     path: '/',
     file: 'index.html',
     fullTitle: true,
+    bodyClass: 'home',
     title: 'BrainBuzz: Free Daily Brain Games, Memory & Logic Puzzles',
-    ogTitle: 'BrainBuzz: Give Your Brain a Daily Buzz',
+    ogTitle: 'BrainBuzz: Train Your Brain. Play Every Day.',
     description: 'Play free brain games in your browser: memory, logic, maths, word and visual puzzles, plus a new Daily Challenge every day. Get BrainBuzz on Android.',
     body,
     jsonLd: [siteLd, appLd, faqLd],
@@ -209,23 +193,77 @@ ${ctaBand('home_cta')}`;
   };
 }
 
+/** Category colours for the chips on the /play/ cards. */
+const CATEGORY_COLOR = { MEMORY: '#6c4bf4', LOGIC: '#15803d', NUMBERS: '#7c3aed', VISUAL: '#c73565', WORDS: '#a15c00' };
+
+function hubCard(g) {
+  return `<a class="hub-card reveal" href="/play/${g.slug}/" style="--c:${g.color};--cat:${CATEGORY_COLOR[g.category]}" data-category="${g.category}" data-game-card="${g.type}">
+  <span class="hub-card-main">${gameIcon(g.type, 'hub-icon')}
+    <span class="hub-card-text"><span class="hub-card-title"><h3>${g.title}</h3>${icon('chevron_right', 'chev')}</span><p>${esc(g.tagline)}.</p></span></span>
+  <span class="foot"><span class="cat-chip">${icon(CATEGORY_ICON[g.category])}${Category[g.category]}</span><span class="best-chip" data-best="${g.type}">New</span></span>
+</a>`;
+}
+
+/** The Daily Challenge banner on /play/; main.js fills in today's result and the countdown. */
+function hubDaily() {
+  return `<div class="hub-daily reveal" data-daily-card>
+  <span class="hub-daily-icon">${icon('calendar_month')}</span>
+  <div class="hub-daily-text">
+    <h2>Daily Challenge</h2>
+    <p>12 puzzles from all seven games. A new set arrives every day!</p>
+    <div class="hub-daily-pills">
+      <span class="hub-pill done" data-daily-done hidden>${icon('check_circle')}<span></span></span>
+      <span class="hub-pill" data-daily-today>${icon('calendar_month')}<span data-daily-date>Today</span></span>
+      <span class="hub-pill">${icon('timer')}20–60 seconds per puzzle</span>
+      <span class="hub-pill" data-daily-next hidden>${icon('schedule')}<span>New set in <span class="countdown" data-countdown>--:--:--</span></span></span>
+    </div>
+  </div>
+  ${goldStar({ id: 'hdS1', cls: 'hub-daily-star s1' })}${goldStar({ id: 'hdS2', cls: 'hub-daily-star s2' })}
+  <a class="hub-daily-cta" href="/play/daily-challenge/" data-daily-cta>${icon('play_arrow')}<span>Play today’s challenge</span>${icon('arrow_forward', 'arrow')}</a>
+</div>`;
+}
+
 function playHub() {
   const filters = [['', 'All games', 'apps'], ...Object.keys(Category).map((k) => [k, Category[k], CATEGORY_ICON[k]])];
+  const features = [
+    ['bolt', 'amber', '10 fun games', 'Boost your brain'],
+    ['emoji_events', 'violet', 'Daily challenge', 'New puzzles every day'],
+    ['bar_chart', 'violet', 'Track progress', 'See your improvement'],
+  ];
   const body = `
-<section class="page-hero"><div class="wrap">
-  ${breadcrumbs([['Home', '/'], ['Play Games']])}
-  <h1>Play free brain games</h1>
-  <p class="lead">Ten games and a Daily Challenge, ready to play in your browser. Choose a game, pick your level and see how far you can get.</p>
-</div></section>
-<section class="section-tight" style="padding-top:0"><div class="wrap">${dailyCard()}</div></section>
-<section class="section-tight"><div class="wrap">
-  <h2 class="visually-hidden">All games</h2>
-  <div class="filter-row" role="group" aria-label="Filter games by category" data-filters hidden>
-    ${filters.map(([k, label, ic], i) => `<button type="button" class="filter-chip" data-filter="${k}" aria-pressed="${i === 0}">${icon(ic)}${label}</button>`).join('')}
+<div class="hub">
+<section class="hub-hero"><div class="wrap">
+  <div class="hub-hero-text">
+    ${breadcrumbs([['Home', '/'], ['Play Games']])}
+    <h1>Play free <span class="hub-grad">brain games</span></h1>
+    <p class="hub-lead">Train your memory, logic, maths and more with fun games.</p>
+    <ul class="hub-features">
+      ${features.map(([ic, tone, title, sub]) => `<li><span class="hub-feature-icon ${tone}">${icon(ic)}</span><span><strong>${title}</strong><span>${sub}</span></span></li>`).join('')}
+    </ul>
   </div>
-  <div class="game-grid" data-game-grid>${LIBRARY.map((g) => gameCard(g, 'h3')).join('')}</div>
-  <p class="muted center" style="margin-top:20px;font-size:.92rem">Best scores are saved only in this browser. They don’t transfer to the Android app, and clearing this site’s data removes them.</p>
+  <div class="hub-hero-art" aria-hidden="true">
+    ${brainMascot({ id: 'hubM', cls: 'hub-mascot', bulb: true, star: false })}
+    <span class="hand hub-hand-top">Small Games<br>Big Brain!</span>
+    <svg class="hub-hand-arrow" viewBox="0 0 60 40" aria-hidden="true" focusable="false"><path d="M52 4C50 22 36 32 10 30m0 0 9-7m-9 7 9 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
 </div></section>
+<section class="hub-daily-wrap"><div class="wrap">${hubDaily()}</div></section>
+<section class="hub-games"><div class="wrap">
+  <h2 class="visually-hidden">All games</h2>
+  <div class="hub-filters" role="group" aria-label="Filter games by category" data-filters hidden>
+    ${filters.map(([k, label, ic], i) => `<button type="button" class="hub-filter" data-filter="${k}" aria-pressed="${i === 0}">${icon(ic)}${label}</button>`).join('')}
+  </div>
+  <div class="hub-grid-wrap"><div class="hub-grid" data-game-grid>
+    ${LIBRARY.map(hubCard).join('')}
+    <div class="hub-deco" aria-hidden="true" data-grid-deco>
+      <span class="hand">Keep playing,<br>Keep growing!</span>
+      <svg class="hub-deco-arrow" viewBox="0 0 60 30" aria-hidden="true" focusable="false"><path d="M4 8c10 18 32 20 50 8m0 0-10-1m10 1-4 9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ${trophy({ id: 'hubT', cls: 'hub-trophy' })}
+    </div>
+  </div></div>
+  <p class="hub-note">${icon('help')}Best scores are saved only in this browser. They don’t transfer to the Android app, and clearing this site’s data removes them.</p>
+</div></section>
+</div>
 ${ctaBand('play_hub_cta')}`;
   return {
     path: '/play/',
@@ -251,7 +289,8 @@ function gamePage(g) {
   const ruleList = g.type === 'DAILY' || g.levels === false;
   const levels = ruleList
     ? `<ul>${g.rules().map((r) => `<li>${r}</li>`).join('')}</ul>`
-    : DIFFICULTIES.map((d) => `<h3 style="font-size:1rem;margin:12px 0 4px">${d.label}</h3><ul>${g.rules(d.name).map((r) => `<li>${r}</li>`).join('')}</ul>`).join('');
+    : `<p>There are 100 levels. Level 1 is gentle and every level after it is a little harder. Pass a level to unlock the next one; you earn up to three stars per level. Here’s how it ramps up:</p>
+    ${SAMPLE_LEVELS.map((lv) => `<h3 style="font-size:1rem;margin:12px 0 4px">${lv.label}</h3><ul>${g.rules(lv).slice(0, -1).map((r) => `<li>${ruleText(r)}</li>`).join('')}</ul>`).join('')}`;
   const body = `
 <section class="page-hero" style="padding-bottom:18px"><div class="wrap">
   ${breadcrumbs([['Home', '/'], ['Play Games', '/play/'], [g.title]])}
@@ -276,7 +315,7 @@ function gamePage(g) {
   <div class="prose">
     <h2>About ${g.title}</h2>
     ${copy.intro.map((p) => `<p>${p}</p>`).join('')}
-    <h2>${ruleList ? 'The rules' : 'Difficulty levels'}</h2>
+    <h2>${ruleList ? 'The rules' : 'Levels 1 to 100'}</h2>
     ${levels}
     <h2>Tips</h2>
     <ul>${copy.tips.map((t) => `<li>${t}</li>`).join('')}</ul>
@@ -318,7 +357,7 @@ function aboutPage() {
   const rows = [
     ['7 brain games and the Daily Challenge', 'yes', 'yes'],
     ['2048 Merge Challenge, Word Detective and Sudoku Daily', 'yes', 'no'],
-    ['Easy, Medium and Hard', 'All free', 'Easy free; Medium and Hard after a short optional video'],
+    ['Difficulty', '100 levels per game, unlocked as you pass', 'Easy, Medium and Hard; Medium and Hard after a short optional video'],
     ['Hints', 'Free', 'Some free; more with optional videos'],
     ['Best scores', 'In this browser', 'yes'],
     ['XP, levels and daily missions', 'no', 'yes'],
@@ -336,7 +375,7 @@ function aboutPage() {
 </div></section>
 <section class="section-tight" style="padding-top:0"><div class="wrap prose">
   <h2>Think today. Better tomorrow.</h2>
-  <p>BrainBuzz is built around short, satisfying puzzles you can finish in a few minutes: a memory test on the bus, a logic puzzle with your coffee, a maths sprint before work. Every game has three difficulty levels, and each level changes the rules, not just the speed.</p>
+  <p>BrainBuzz is built around short, satisfying puzzles you can finish in a few minutes: a memory test on the bus, a logic puzzle with your coffee, a maths sprint before work. On this website the seven timed games and Sudoku each have 100 levels that start gentle and get harder, and higher levels change the rules, not just the speed.</p>
   <p>The Daily Challenge gives everyone the same 12 puzzles each day, so you can compare scores with friends whether they play in the app or here on the web.</p>
   <h2>The games</h2>
   <ul>${ALL_GAMES.map((g) => `<li><a href="/play/${g.slug}/"><strong>${g.title}</strong></a> (${Category[g.category]}): ${esc(g.tagline)}.</li>`).join('')}</ul>
@@ -384,7 +423,7 @@ function privacyPage() {
   ${breadcrumbs([['Home', '/'], ['Privacy Policy']])}
   <h1>Privacy Policy</h1>
   <p class="lead">The short version: we don’t ask for your personal information, and your game scores stay in your browser. This website may show ads from Google AdSense, and Google may collect information to serve and measure those ads, as explained below.</p>
-  <p class="muted">Last updated: 21 October 2026</p>
+  <p class="muted">Last updated: 23 October 2026</p>
 </div></section>
 <section class="section-tight" style="padding-top:0"><div class="wrap prose">
   <p>This policy covers the website at <strong>brainbuzzgame.com</strong>. The BrainBuzz Android app has its own privacy policy, which you can read on <a href="${APP_PRIVACY_URL}" rel="noopener" target="_blank">the BrainBuzz app privacy policy page</a>. It is also linked from the app’s Google Play listing.</p>
@@ -400,7 +439,7 @@ function privacyPage() {
   <p>To make the games nicer to use, the website saves a few things in your browser’s <em>local storage</em>. They stay on your device, are never sent to us, and you can delete them at any time by clearing this site’s data in your browser settings.</p>
   <ul>
     <li><code>bb-theme</code>: whether you chose the light or dark theme.</li>
-    <li><code>bb-progress-v1</code>: your best score for each game and difficulty, the difficulty you last picked, and your Daily Challenge results for recent days.</li>
+    <li><code>bb-progress-v1</code>: your best score for each game and level, the level you last picked, which levels you’ve unlocked and the stars you earned, and your Daily Challenge results for recent days.</li>
   </ul>
   <p>This data doesn’t sync with the BrainBuzz Android app or with other browsers and devices, and it isn’t shared with advertisers.</p>
 
@@ -478,7 +517,7 @@ function contactPage() {
       <h2>Reporting a problem?</h2>
       <p>It helps a lot if you tell us:</p>
       <ul class="muted" style="margin:0;padding-left:1.2em">
-        <li>the game and difficulty</li>
+        <li>the game and level</li>
         <li>whether it was the website or the Android app</li>
         <li>your device and browser (or app version)</li>
         <li>what you expected and what happened</li>

@@ -8,7 +8,8 @@
 import { readFileSync } from 'fs';
 import { KRandom, until } from '../assets/js/lib/random.js';
 import { DIFFICULTIES } from '../assets/js/engine/models.js';
-import { MathGenerator, SequenceGenerator, AdaptiveMath, dailyQuestions, todayEpochDay } from '../assets/js/engine/quiz.js';
+import { MathGenerator, SequenceGenerator, AdaptiveMath, todayEpochDay } from '../assets/js/engine/quiz.js';
+import { dailyMix } from '../assets/js/engine/daily.js';
 import { generateOdd, ODD_PUZZLES } from '../assets/js/engine/odd.js';
 import { generatePath, isSolved, connectedCells, misalignedPathCell, turnsToMatch, rotateMask } from '../assets/js/engine/logic-path.js';
 import { wordRound, isCorrect } from '../assets/js/engine/words.js';
@@ -51,7 +52,19 @@ for (const seed of [0, 1, 12345, -7, 9876543210, 104729 + 20000 * 7919]) {
   });
 }
 
-for (const day of [0, 19000, 20000, 20381, 20382, 20383, 20400, 20747, 20748, 21000]) check(`daily:${day}`, dailyQuestions(day).map(ql));
+const board = (p) => ({ size: p.size, sr: p.startRow, er: p.endRow, tiles: p.tiles.map((t) => `${t.kind.name}:${t.rotation}`), path: p.solutionPath, par: p.par });
+const stage = (s) => {
+  switch (s.kind) {
+    case 'MATH': case 'SEQUENCE': return { k: s.kind, q: ql(s.question) };
+    case 'ODD': return { k: 'ODD', items: s.puzzle.items.map(item), odd: s.puzzle.oddIndex, c: s.puzzle.columns, e: s.puzzle.explanation };
+    case 'WORD': return { k: 'WORD', w: s.entry.word, l: s.letters.join('') };
+    case 'MATRIX': return { k: 'MATRIX', p: s.pattern };
+    case 'MEMORY': return { k: 'MEMORY', c: s.cards.map((c) => c.symbol) };
+    default: return { k: 'LOGIC', b: board(s.puzzle) };
+  }
+};
+const DAILY_DAYS = [0, 19000, 20000, 20381, 20382, 20383, 20400, 20747, 20748, 21000, ...Array.from({ length: 31 }, (_, i) => 20749 + i)];
+for (const day of DAILY_DAYS) check(`daily:${day}`, dailyMix(day).map(stage));
 
 for (let seed = 1; seed <= 6; seed++) {
   for (const d of DIFFICULTIES) {
