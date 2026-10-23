@@ -62,7 +62,7 @@ function glyph(item) {
   return el;
 }
 
-function itemNode(item) {
+export function itemNode(item) {
   if (item.type === 'glyph') return glyph(item);
   if (item.type === 'number') return h('span.num', {}, String(item.value));
   return h(`span.let${item.mirrored ? '.mirror' : ''}`, {}, item.char);

@@ -3,22 +3,27 @@
  * has a common English anagram, so each scramble has one intended answer.
  */
 import { EASY, MEDIUM, HARD } from './word-bank.js';
+import { wordLevel } from './levels.js';
 
 export const WORDS_PER_ROUND = 8;
-export const wordRoundTimeMs = (difficulty) => ({ EASY: 150000, MEDIUM: 165000, HARD: 180000 })[difficulty.name];
+export const wordsPerRound = (difficulty) => (difficulty.level ? wordLevel(difficulty.level).words : WORDS_PER_ROUND);
+export const wordRoundTimeMs = (difficulty) => (difficulty.level ? wordLevel(difficulty.level).roundTimeMs : { EASY: 150000, MEDIUM: 165000, HARD: 180000 }[difficulty.name]);
 
-/** Hard hides the clue until the first hint; Easy and Medium show it up front. */
-export const clueVisibleByDefault = (difficulty) => difficulty.name !== 'HARD';
+/** Hard hides the clue until the first hint; Easy and Medium show it up front. Website levels hide it from level 80. */
+export const clueVisibleByDefault = (difficulty) => (difficulty.level ? wordLevel(difficulty.level).clueVisible : difficulty.name !== 'HARD');
 
 const toEntries = (list) => list.map(([word, clue]) => ({ word, clue }));
 const BANK = { EASY: toEntries(EASY), MEDIUM: toEntries(MEDIUM), HARD: toEntries(HARD) };
 const ALL_WORDS = new Set([...EASY, ...MEDIUM, ...HARD].map(([w]) => w));
 
-export const bank = (difficulty) => BANK[difficulty.name];
+export function bank(difficulty) {
+  const maxLength = difficulty.level ? wordLevel(difficulty.level).maxLength : null;
+  return maxLength ? BANK[difficulty.name].filter((e) => e.word.length <= maxLength) : BANK[difficulty.name];
+}
 
 /** Words for one round, shortest first so the round ramps up gently. */
 export function wordRound(difficulty, random) {
-  return random.shuffled(bank(difficulty)).slice(0, WORDS_PER_ROUND)
+  return random.shuffled(bank(difficulty)).slice(0, wordsPerRound(difficulty))
     .sort((a, b) => a.word.length - b.word.length)
     .map((entry) => ({ entry, answer: entry.word, letters: scramble(entry.word, random) }));
 }

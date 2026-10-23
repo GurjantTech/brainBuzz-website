@@ -50,7 +50,12 @@ async function newPage(browser, { width = 390, mobile = true, speed = SPEED, blo
     else page.errors.push(e.message);
   });
   const expected = blockAds ? /404|ERR_BLOCKED_BY_CLIENT/ : /404/;
-  page.on('console', (m) => { if (m.type() === 'error' && !expected.test(m.text())) page.errors.push(m.text()); });
+  page.on('console', (m) => {
+    if (m.type() !== 'error' || expected.test(m.text())) return;
+    const frames = (m.stackTrace() || []).map((f) => f.url).concat((m.location() || {}).url || []).filter(Boolean);
+    if (frames.length && frames.every((u) => !u.startsWith(BASE))) thirdParty.push(`${m.text()} (${frames[0].replace(/\?.*/, '')})`);
+    else page.errors.push(m.text());
+  });
   if (blockAds) {
     await page.setRequestInterception(true);
     page.on('request', (r) => (r.url().startsWith(BASE) || r.url().startsWith('data:') ? r.continue() : r.abort('blockedbyclient')));
@@ -508,7 +513,7 @@ async function suiteDaily(browser) {
   console.log(`    ${r.title} ${r.score} pts · ${r.stats.join(' · ')}`);
   check('Daily has 12 puzzles', n === 12, `(${n})`);
   check('Daily mixes maths and patterns', kinds.has('Quick Math') && kinds.has('Pattern'));
-  check('Daily ramps Easy → Medium → Hard', levels.slice(0, 4).every((l) => l === 'Easy') && levels.slice(4, 8).every((l) => l === 'Medium') && levels.slice(8).every((l) => l === 'Hard'), `(${levels})`);
+  check('Daily questions are all Hard', levels.length === 12 && levels.every((l) => l === 'Hard'), `(${levels})`);
   check('perfect Daily is Flawless', r.title === 'Flawless!', `(${r.title})`);
   await page.reload({ waitUntil: 'networkidle0' });
   await page.waitForSelector('.results');
@@ -548,6 +553,13 @@ async function suiteSite(browser) {
           ld: Array.from(document.querySelectorAll('script[type="application/ld+json"]')).every((s) => { try { JSON.parse(s.textContent); return true; } catch (e) { return false; } }),
           unnamedButtons: Array.from(document.querySelectorAll('button, a[href]')).filter((b) => !(b.textContent.trim() || b.getAttribute('aria-label') || b.querySelector('img[alt]:not([alt=""])'))).length,
           adScripts: document.querySelectorAll('script[src*="pagead/js/adsbygoogle.js"]').length,
+          // Every icon must use the page's content-versioned sprite and actually draw (a stale sprite draws nothing).
+          badIcons: Array.from(document.querySelectorAll('use')).filter((u) => {
+            const r = u.getBoundingClientRect();
+            const shown = u.closest('svg').getClientRects().length > 0;
+            return !u.getAttribute('href').startsWith(`${document.documentElement.dataset.icons}#`) || (shown && r.width === 0);
+          }).map((u) => u.getAttribute('href').split('#')[1]),
+          icons: document.documentElement.dataset.icons || '',
           adSlots: Array.from(document.querySelectorAll('ins.adsbygoogle[data-ad-slot]')).map((i) => `${i.dataset.adClient}/${i.dataset.adSlot}`),
         };
       });
@@ -562,6 +574,7 @@ async function suiteSite(browser) {
         check(`${tag} structured data parses`, info.ld);
         check(`${tag} every button and link has a name`, info.unnamedButtons === 0, `(${info.unnamedButtons})`);
         const slot = p === '/' ? [`${AD_CLIENT}/1993165487`] : /^\/play\/.+\//.test(p) ? [`${AD_CLIENT}/1076678798`] : [];
+        check(`${tag} icons use the versioned sprite and all draw`, /\?v=[0-9a-f]{10}$/.test(info.icons) && info.badIcons.length === 0, `(${info.icons} ${info.badIcons})`);
         check(`${tag} AdSense loads once with the right ad unit`, info.adScripts === 1 && info.adSlots.join() === slot.join(), `(${info.adScripts} ${info.adSlots})`);
       }
     }

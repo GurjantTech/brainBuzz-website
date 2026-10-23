@@ -3,9 +3,10 @@
  * number puzzles follow a rule that every item but one obeys.
  */
 import { rangeOf } from '../lib/random.js';
+import { oddLevel } from './levels.js';
 
 export const ODD_PUZZLES = 12;
-export const timePerPuzzleMs = (difficulty) => ({ EASY: 15000, MEDIUM: 13000, HARD: 12000 })[difficulty.name];
+export const timePerPuzzleMs = (difficulty) => (difficulty.level ? oddLevel(difficulty.level).timeMs : { EASY: 15000, MEDIUM: 13000, HARD: 12000 }[difficulty.name]);
 
 const SHAPE_LABEL = {
   CIRCLE: 'circle', SQUARE: 'square', TRIANGLE: 'triangle', DIAMOND: 'diamond',
@@ -24,7 +25,9 @@ export function generateOdd(difficulty, index, random) {
   if (difficulty.name === 'EASY') kinds = late ? ['SHAPE', 'ROTATION', 'DIGITS', 'PARITY'] : ['SHAPE', 'SIZE', 'DIGITS'];
   else if (difficulty.name === 'MEDIUM') kinds = late ? ['ROTATION', 'MIRROR', 'PARITY', 'MULTIPLE'] : ['SHAPE', 'ROTATION', 'PARITY', 'DIGITS'];
   else kinds = ['ROTATION', 'MIRROR', 'MULTIPLE', 'SHAPE'];
-  const [count, columns] = { EASY: [9, 3], MEDIUM: [12, 3], HARD: [16, 4] }[difficulty.name];
+  const [count, columns] = difficulty.level
+    ? [oddLevel(difficulty.level).count, oddLevel(difficulty.level).columns]
+    : { EASY: [9, 3], MEDIUM: [12, 3], HARD: [16, 4] }[difficulty.name];
   switch (random.pick(kinds)) {
     case 'SHAPE': return shapePuzzle(difficulty, count, columns, random);
     case 'SIZE': return sizePuzzle(count, columns, random);
@@ -65,7 +68,7 @@ function rotationPuzzle(difficulty, count, columns, random) {
   let turn;
   if (difficulty.name === 'EASY') turn = 180;
   else if (difficulty.name === 'MEDIUM') turn = random.pick([90, 270]);
-  else turn = random.pick([45, 315, 90]);
+  else turn = random.pick(difficulty.level && oddLevel(difficulty.level).subtleTurnsOnly ? [45, 315] : [45, 315, 90]);
   const [items, odd] = withOdd(count, random, glyph('ARROW', base), glyph('ARROW', (base + turn) % 360));
   return { items, oddIndex: odd, columns, explanation: 'This arrow points a different way from the others.' };
 }

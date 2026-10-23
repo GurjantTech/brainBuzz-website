@@ -2,6 +2,8 @@
  * Logic Path (LogicPath.kt). Water enters the left side of startRow and must leave the right
  * side of endRow. Boards are built from a known path and then scrambled, so they're solvable.
  */
+import { logicLevel } from './levels.js';
+
 export const Dir = { N: 1, E: 2, S: 4, W: 8 };
 const ALL_DIRS = [Dir.N, Dir.E, Dir.S, Dir.W];
 
@@ -23,11 +25,13 @@ export const PipeKind = {
 export const tileMask = (tile) => rotateMask(tile.kind.baseMask, tile.rotation);
 export const rotated = (tile) => (tile.locked ? tile : { ...tile, rotation: (tile.rotation + 1) % 4 });
 
+/** `extraLength` lets the longest path grow beyond the usual limit (the app's Hard adds 3). */
 export function logicRules(difficulty) {
+  if (difficulty.level) return logicLevel(difficulty.level);
   switch (difficulty.name) {
-    case 'EASY': return { size: 4, puzzles: 3, roundTimeMs: 150000, teeChance: 0 };
-    case 'MEDIUM': return { size: 5, puzzles: 3, roundTimeMs: 180000, teeChance: Math.fround(0.25) };
-    default: return { size: 6, puzzles: 3, roundTimeMs: 180000, teeChance: Math.fround(0.4) };
+    case 'EASY': return { size: 4, puzzles: 3, roundTimeMs: 150000, teeChance: 0, extraLength: 0 };
+    case 'MEDIUM': return { size: 5, puzzles: 3, roundTimeMs: 180000, teeChance: Math.fround(0.25), extraLength: 0 };
+    default: return { size: 6, puzzles: 3, roundTimeMs: 180000, teeChance: Math.fround(0.4), extraLength: 3 };
   }
 }
 
@@ -53,7 +57,7 @@ export function generatePath(difficulty, index, random) {
   const rules = logicRules(difficulty);
   const n = rules.size;
   const minLen = n + index;
-  const maxLen = n + 2 + index * 2 + (difficulty.name === 'HARD' ? 3 : 0);
+  const maxLen = n + 2 + index * 2 + rules.extraLength;
   for (let attempt = 0; attempt < 50; attempt++) {
     const startRow = random.nextIntUntil(n);
     const endRow = random.nextIntUntil(n);

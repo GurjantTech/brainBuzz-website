@@ -7,6 +7,7 @@
  * if generation ever fails, a bundled, verified puzzle is used instead.
  */
 import { KRandom } from '../lib/random.js';
+import { sudokuLevel, tierOf, clampLevel } from './levels.js';
 
 export const SIZE = 81;
 const ALL = 0x3fe; // bits 1..9
@@ -150,8 +151,7 @@ function fullGrid(rng) {
   return fill(0) ? grid : null;
 }
 
-function carve(solution, level, rng) {
-  const { clues, singles } = SUDOKU_LEVELS[level];
+function carve(solution, { clues, singles }, rng) {
   const puzzle = solution.slice();
   let left = SIZE;
   // Remove symmetric pairs for a balanced look; the centre cell is its own pair.
@@ -198,20 +198,22 @@ function fallback(level, rng) {
 }
 
 /**
- * Returns { puzzle, solution, clues, fallback } for a level. Pass a seed for a repeatable puzzle
- * (the daily one); without it the puzzle is random.
+ * Returns { puzzle, solution, clues, fallback } for a level: EASY/MEDIUM/HARD (the daily puzzle) or a
+ * website level number 1–100. Pass a seed for a repeatable puzzle; without it the puzzle is random.
  */
 export function generate(level, seed = null) {
-  const lv = SUDOKU_LEVELS[level] ? level : 'EASY';
+  const numbered = typeof level === 'number';
+  const lv = numbered ? tierOf(clampLevel(level)) : SUDOKU_LEVELS[level] ? level : 'EASY';
+  const rules = numbered ? sudokuLevel(clampLevel(level)) : SUDOKU_LEVELS[lv];
   const rng = seed === null ? KRandom.fresh() : KRandom.ofSeed(seed);
-  const singles = SUDOKU_LEVELS[lv].singles;
+  const singles = rules.singles;
   let spare = null;
   // Hard prefers a puzzle that singles alone can't finish; after a few tries it keeps the best valid one.
   for (let attempt = 0; attempt < (singles ? 3 : 8); attempt++) {
     try {
       const solution = fullGrid(rng);
       if (!solution) continue;
-      const puzzle = carve(solution, lv, rng);
+      const puzzle = carve(solution, rules, rng);
       if (!verifyPuzzle(puzzle, solution)) continue;
       const found = { puzzle, solution, clues: puzzle.filter(Boolean).length, fallback: false };
       if (singles) { if (solvableBySingles(puzzle)) return found; continue; }
@@ -224,6 +226,9 @@ export function generate(level, seed = null) {
   if (fb) return { ...fb, clues: fb.puzzle.filter(Boolean).length };
   throw new Error('No valid Sudoku available');
 }
+
+/** Level N is the same puzzle for everyone. */
+export const levelSeed = (level) => 500009 * level + 77;
 
 /** The same puzzle for everyone on a given local date and level. */
 export const dailySeed = (epochDay, level) => epochDay * 7 + { EASY: 1, MEDIUM: 2, HARD: 3 }[level];

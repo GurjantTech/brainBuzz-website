@@ -1,10 +1,12 @@
 /** Memory Matrix (MemoryMatrix.kt) and Memory Match deck (MemoryDeck.kt) rules. */
 import { until } from '../lib/random.js';
+import { matrixLevel, memoryLevel } from './levels.js';
 
 export const MATRIX_LIVES = 3;
 export const MATRIX_MAX_ROUNDS = 10;
 
 export function matrixRules(difficulty) {
+  if (difficulty.level) return matrixLevel(difficulty.level);
   switch (difficulty.name) {
     case 'EASY': return { startGrid: 3, maxGrid: 5, startLength: 3, ordered: false, flashMs: 750 };
     case 'MEDIUM': return { startGrid: 4, maxGrid: 6, startLength: 4, ordered: false, flashMs: 600 };
@@ -42,14 +44,15 @@ export function checkTap(pattern, ordered, tapped, cell) {
 
 // Memory Match
 
+/** The app deals from the first 10 symbols; website levels use all of them (up to 12 pairs). */
 export const SYMBOL_COUNT = 10;
-export const pairsFor = (difficulty) => ({ EASY: 6, MEDIUM: 8, HARD: 10 })[difficulty.name];
+export const pairsFor = (difficulty) => (difficulty.level ? memoryLevel(difficulty.level).pairs : { EASY: 6, MEDIUM: 8, HARD: 10 }[difficulty.name]);
 /** Grid columns in portrait; rows follow from the card count. */
-export const columnsFor = (difficulty) => (difficulty.name === 'EASY' ? 3 : 4);
-export const previewMsFor = (difficulty) => ({ EASY: 2000, MEDIUM: 1500, HARD: 1000 })[difficulty.name];
+export const columnsFor = (difficulty) => (difficulty.level ? memoryLevel(difficulty.level).columns : difficulty.name === 'EASY' ? 3 : 4);
+export const previewMsFor = (difficulty) => (difficulty.level ? memoryLevel(difficulty.level).previewMs : { EASY: 2000, MEDIUM: 1500, HARD: 1000 }[difficulty.name]);
 
 export function deal(difficulty, random) {
-  const symbols = random.shuffled(until(SYMBOL_COUNT)).slice(0, pairsFor(difficulty));
+  const symbols = random.shuffled(until(difficulty.level ? SYMBOLS.length : SYMBOL_COUNT)).slice(0, pairsFor(difficulty));
   return random.shuffled([...symbols, ...symbols]).map((symbol, id) => ({ id, symbol, faceUp: false, matched: false }));
 }
 
@@ -65,4 +68,7 @@ export const SYMBOLS = [
   { icon: 'anchor', name: 'Anchor', color: '#0FB5A6' },
   { icon: 'cloud', name: 'Cloud', color: '#7E8AA6' },
   { icon: 'emoji_nature', name: 'Bee', color: '#B45CE6' },
+  // Website only, for the levels with 11 and 12 pairs.
+  { icon: 'bolt', name: 'Bolt', color: '#E5484D' },
+  { icon: 'extension', name: 'Puzzle', color: '#16825A' },
 ];

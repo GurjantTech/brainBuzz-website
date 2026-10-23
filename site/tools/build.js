@@ -65,7 +65,7 @@ function iconSprite() {
   return `<svg xmlns="http://www.w3.org/2000/svg">${symbols.join('')}</svg>\n`;
 }
 
-function checkLinks(pages) {
+function checkLinks(pages, build) {
   const problems = [];
   const sprite = fs.readFileSync(path.join(DIST, 'assets/img/icons.svg'), 'utf8');
   const iconIds = new Set([...sprite.matchAll(/<symbol id="([^"]+)"/g)].map((m) => m[1]));
@@ -79,8 +79,10 @@ function checkLinks(pages) {
     const rel = path.relative(DIST, file);
     for (const m of html.matchAll(/(?:href|src)="(\/[^"]*)"/g)) {
       if (!exists(m[1])) problems.push(`${rel}: broken link ${m[1]}`);
-      const iconRef = /^\/assets\/img\/icons\.svg#(.+)$/.exec(m[1]);
-      if (iconRef && !iconIds.has(iconRef[1])) problems.push(`${rel}: missing icon ${iconRef[1]}`);
+      const iconRef = /^\/assets\/img\/icons\.svg(\?v=[^#]*)?#(.+)$/.exec(m[1]);
+      if (iconRef && !iconIds.has(iconRef[2])) problems.push(`${rel}: missing icon ${iconRef[2]}`);
+      // An unversioned or outdated sprite URL lets a cached old sprite blank out new icons.
+      if (iconRef && iconRef[1] !== `?v=${build.iconsVersion}`) problems.push(`${rel}: icon ${iconRef[2]} doesn't use the current sprite version`);
     }
   }
   // Icons referenced from scripts as icon('name').
@@ -104,13 +106,15 @@ function main() {
   copyDir(path.join(ROOT, 'assets'), path.join(DIST, 'assets'));
   fs.copyFileSync(path.join(ROOT, 'favicon.ico'), path.join(DIST, 'favicon.ico'));
   fs.copyFileSync(path.join(ROOT, 'ads.txt'), path.join(DIST, 'ads.txt'));
-  write('assets/img/icons.svg', iconSprite());
+  const sprite = iconSprite();
+  write('assets/img/icons.svg', sprite);
 
   const css = fs.readFileSync(path.join(ROOT, 'assets/css/styles.css'));
   const js = listFiles(path.join(ROOT, 'assets/js'), '.js').sort().map((f) => fs.readFileSync(f, 'utf8')).join('\n');
   const build = {
     cssVersion: hash(css),
     jsVersion: hash(js),
+    iconsVersion: hash(sprite),
     scriptHashes: [THEME_SCRIPT, LOADER_SCRIPT].map((s) => `sha256-${crypto.createHash('sha256').update(s).digest('base64')}`),
     adPreview: AD_PREVIEW,
   };
@@ -145,7 +149,7 @@ ${urls.map((p) => `  <url><loc>${SITE_URL}${p.path}</loc><lastmod>${today}</last
     related_applications: [{ platform: 'play', url: 'https://play.google.com/store/apps/details?id=com.app.dailybrainchallenge', id: 'com.app.dailybrainchallenge' }],
   }, null, 2)}\n`);
 
-  const problems = checkLinks(pages);
+  const problems = checkLinks(pages, build);
   if (problems.length) {
     console.error(`Build finished with ${problems.length} problem(s):`);
     for (const p of problems) console.error(`  - ${p}`);
