@@ -213,6 +213,7 @@ p { margin: 0 0 1em; }
 .btn-sm { min-height: 40px; padding: 0.5em 1em; font-size: 0.92rem; }
 .btn-block { width: 100%; }
 .btn .icon { width: 1.3em; height: 1.3em; }
+.btn .play-logo, .app-card-cta .play-logo { flex: none; width: 1.1em; height: 1.2em; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .play-badge { display: inline-block; border-radius: 10px; transition: transform 0.18s var(--ease); }

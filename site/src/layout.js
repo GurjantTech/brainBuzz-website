@@ -1,5 +1,5 @@
 /** Page shell shared by every page: <head> with SEO tags, header, footer. */
-import { SITE_URL, SITE_NAME, APP_NAME, playUrl, PLAY_DEV_URL, TAGLINE, DISCLAIMER } from '../assets/js/lib/site.js';
+import { SITE_URL, SITE_NAME, APP_NAME, playUrl, PLAY_DEV_URL, TAGLINE, DISCLAIMER, PLAY_LOGO } from '../assets/js/lib/site.js';
 import { ALL_GAMES } from '../assets/js/engine/models.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -13,16 +13,13 @@ export const playBadge = (placement) =>
   `<a class="play-badge" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">` +
   `<img src="/assets/img/google-play-badge.webp" width="646" height="250" alt="Get it on Google Play" loading="lazy" decoding="async"></a>`;
 
-/** The four-colour Google Play triangle, for the home page's Play button. */
-const PLAY_LOGO = '<svg class="play-logo" viewBox="0 0 24 26" aria-hidden="true" focusable="false">'
-  + '<path d="M1.3.7 13.6 13 1.3 25.3c-.4-.3-.6-.9-.6-1.5V2.2c0-.6.2-1.2.6-1.5z" fill="#4285f4"/>'
-  + '<path d="M17.7 8.9 13.6 13 1.3.7c.5-.4 1.3-.5 2.1-.1z" fill="#34a853"/>'
-  + '<path d="M17.7 17.1 3.4 25.4c-.8.4-1.6.3-2.1-.1L13.6 13z" fill="#ea4335"/>'
-  + '<path d="M22.3 11.5c1.1.6 1.1 2.4 0 3l-4.6 2.6-4.1-4.1 4.1-4.1z" fill="#fbbc04"/></svg>';
 
-/** A button to the app on Google Play; [playLogo] shows the Play triangle instead of the Android icon. */
-export const playButton = (placement, label = 'Get BrainBuzz on Google Play', cls = 'btn btn-secondary btn-lg', { playLogo = false } = {}) =>
-  `<a class="${cls}" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">${playLogo ? PLAY_LOGO : icon('android')}<span>${label}</span></a>`;
+/** The Play triangle on a white disc, so it stays visible on coloured buttons. */
+export const PLAY_CHIP = `<span class="play-logo-chip">${PLAY_LOGO}</span>`;
+
+/** A button to the app on Google Play, with the Play triangle. */
+export const playButton = (placement, label = 'Get BrainBuzz on Google Play', cls = 'btn btn-secondary btn-lg') =>
+  `<a class="${cls}" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">${PLAY_LOGO}<span>${label}</span></a>`;
 
 const NAV = [
   { href: '/', label: 'Home' },
@@ -88,14 +85,14 @@ function header(path) {
       <button class="icon-btn theme-toggle" type="button" aria-label="Switch to dark theme" data-theme-toggle>
         ${icon('dark_mode', 'i-light')}${icon('light_mode', 'i-dark')}
       </button>
-      <a class="btn btn-primary btn-sm header-cta" href="${esc(playUrl('header'))}" rel="noopener" target="_blank" data-play="header"><span class="play-logo-chip">${PLAY_LOGO}</span><span>Get the app</span></a>
+      <a class="btn btn-primary btn-sm header-cta" href="${esc(playUrl('header'))}" rel="noopener" target="_blank" data-play="header">${PLAY_CHIP}<span>Get the app</span></a>
       <button class="icon-btn nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav" data-nav-toggle>${icon('menu')}</button>
     </div>
   </div>
   <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile">
     ${links('')}
     <a href="/contact/"${path === '/contact/' ? ' aria-current="page"' : ''}>Contact</a>
-    <a class="btn btn-primary btn-block" href="${esc(playUrl('mobile_menu'))}" rel="noopener" target="_blank" data-play="mobile_menu">${icon('android')}<span>Get BrainBuzz on Google Play</span></a>
+    <a class="btn btn-primary btn-block" href="${esc(playUrl('mobile_menu'))}" rel="noopener" target="_blank" data-play="mobile_menu">${PLAY_CHIP}<span>Get BrainBuzz on Google Play</span></a>
   </nav>
 </header>`;
 }

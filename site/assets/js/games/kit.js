@@ -1,6 +1,13 @@
 /** Pieces shared by the timed-game shell and the website-only games: results stats, app CTA, confetti, live region. */
 import { h, icon, prefersReducedMotion } from '../lib/dom.js';
-import { playUrl } from '../lib/site.js';
+import { playUrl, PLAY_LOGO } from '../lib/site.js';
+
+/** The Google Play triangle as an element; [chip] puts it on a white disc for coloured buttons. */
+function playLogo(chip = false) {
+  const holder = document.createElement('span');
+  holder.innerHTML = chip ? `<span class="play-logo-chip">${PLAY_LOGO}</span>` : PLAY_LOGO;
+  return holder.firstChild;
+}
 
 export function statGrid(items) {
   return h('div.stat-grid', {}, items.map(([ic, value, label]) => h('div.stat', {}, icon(ic), h('strong', {}, value), h('span', {}, label))));
@@ -13,7 +20,7 @@ export function appCta(placement) {
       h('h3', {}, 'Want more brain challenges?'),
       h('p', {}, 'Get BrainBuzz on Android to earn XP, keep a daily streak and unlock 20 achievements.')),
     h('a.btn.btn-light', { href: playUrl(placement), rel: 'noopener', target: '_blank', 'data-play': placement },
-      icon('android'), h('span', {}, 'Get it on Google Play')));
+      playLogo(), h('span', {}, 'Get it on Google Play')));
 }
 
 export function confetti(stage) {
@@ -65,4 +72,40 @@ export function ticker(el, fn, ms = 1000) {
     if (!el.isConnected) { clearInterval(t); return; }
     fn();
   }, ms);
+}
+
+/** The website lets you play levels 1–5 of each game; the rest are in the app. */
+export const WEB_LEVEL_LIMIT = 5;
+
+/**
+ * Shown when a player tries a level above WEB_LEVEL_LIMIT: points them to the app and explains that
+ * website progress doesn't carry over, because the website stores no user data.
+ */
+export function appOnlyLevelDialog(stage, level, placement) {
+  const close = () => {
+    o.remove();
+    document.removeEventListener('keydown', onKey, true);
+    stage.focus({ preventScroll: true });
+  };
+  const onKey = (e) => {
+    if (e.key !== 'Escape') return;
+    e.stopPropagation();
+    close();
+  };
+  const o = h('div.overlay', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'app-only-title', 'aria-describedby': 'app-only-text' },
+    h('div.overlay-card', {},
+      h('img.logo', { src: '/assets/img/logo-192.webp', width: 72, height: 72, alt: '', style: { display: 'block', margin: '0 auto' } }),
+      h('h2', { id: 'app-only-title' }, `Level ${level} is in the app`),
+      h('div', { id: 'app-only-text', class: 'muted', style: { display: 'grid', gap: '8px' } },
+        h('p', { style: { margin: 0 } }, `You’ve played all ${WEB_LEVEL_LIMIT} website levels. Please use the BrainBuzz mobile app to play more levels.`),
+        h('p', { style: { margin: 0 } }, h('strong', {}, 'Your score won’t be saved. '),
+          'We don’t store any user data, so you’ll start from scratch in the app.')),
+      h('a.btn.btn-primary.btn-lg', { href: playUrl(placement), rel: 'noopener', target: '_blank', 'data-play': placement },
+        playLogo(true), h('span', {}, 'Get it on Google Play')),
+      h('button.btn.btn-secondary', { type: 'button', onclick: close }, icon('arrow_back'), h('span', {}, 'Back to levels'))));
+  stage.append(o);
+  document.addEventListener('keydown', onKey, true);
+  // The level list is long, so on phones the Start button can sit far below the stage's middle.
+  o.firstChild.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  o.querySelector('a').focus({ preventScroll: true });
 }
