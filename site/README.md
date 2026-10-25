@@ -34,7 +34,7 @@ assets/
                       are the website-only games (not from the app)
   js/games/           shell.js (setup → countdown → play → results), one board per game; kit.js shared pieces;
                       merge.js, detective.js and sudoku.js mount their own frames
-ads.txt               Google AdSense authorised-seller record, copied to dist/ads.txt (served at /ads.txt)
+app-ads.txt           Google authorised-seller record, copied to dist/app-ads.txt (AdMob) and dist/ads.txt (AdSense)
 tools/build.js        Build + sitemap/robots/manifest/CNAME + broken-link and missing-icon check
 tools/serve.js        Local preview server
 tests/                parity.test.js (+ Kotlin reference fixtures), games.test.js, e2e.test.js
@@ -87,7 +87,7 @@ All CTAs use `playUrl(placement)` in `assets/js/lib/site.js`, which adds `&refer
 - **Manual units:** `adSlot(AD_SLOTS.home)` on the homepage (horizontalAd, between "Why BrainBuzz" and the FAQ) and `adSlot(AD_SLOTS.game)` on every game page (horizontalAd2, below the rules and tips, far from the board). `main.js` requests each unit once. Unfilled units collapse; if AdSense is blocked, `html.ads-off` hides them.
 - **Auto ads, formats and consent messages** are configured in the AdSense account, not in code.
 - **CSP:** Google only supports nonce-based CSP, which static hosting can't issue, so scripts are trusted by hash plus `'strict-dynamic'` (see the comment in `renderPage()`). Ads need frames, images and beacons on changing Google domains, so those directives allow `https:`.
-- **`ads.txt`** in this folder is copied to `dist/ads.txt` (served at `/ads.txt`).
+- **`app-ads.txt`** in this folder is copied to `dist/app-ads.txt` (served at `/app-ads.txt` for the app's AdMob) and to `dist/ads.txt` (served at `/ads.txt` for this site's AdSense).
 - **Layout check without real ads:** `node tools/build.js --ad-preview` swaps each unit for a dashed "LOCAL PREVIEW ONLY. Not an advertisement" box. It refuses to run in CI; rebuild without the flag afterwards.
 
 ## Deploy to brainbuzzgame.com (GitHub Pages)
