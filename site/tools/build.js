@@ -2,7 +2,7 @@
  * Builds the static site into dist/. No dependencies; runs on Node 12.20+.
  *   node tools/build.js
  *   node tools/build.js --ad-preview   local only: dashed "not an advertisement" boxes instead of AdSense
- * Renders every page in src/pages.js, copies assets and ads.txt, builds the icon sprite, sitemap,
+ * Renders every page in src/pages.js, copies assets and app-ads.txt, builds the icon sprite, sitemap,
  * robots, manifest and CNAME, then checks that every internal link and asset reference resolves.
  */
 import fs from 'fs';
@@ -105,7 +105,9 @@ function main() {
   rmrf(DIST);
   copyDir(path.join(ROOT, 'assets'), path.join(DIST, 'assets'));
   fs.copyFileSync(path.join(ROOT, 'favicon.ico'), path.join(DIST, 'favicon.ico'));
-  fs.copyFileSync(path.join(ROOT, 'ads.txt'), path.join(DIST, 'ads.txt'));
+  // One seller record serves AdMob (/app-ads.txt, for the app) and AdSense (/ads.txt, for this site).
+  fs.copyFileSync(path.join(ROOT, 'app-ads.txt'), path.join(DIST, 'app-ads.txt'));
+  fs.copyFileSync(path.join(ROOT, 'app-ads.txt'), path.join(DIST, 'ads.txt'));
   const sprite = iconSprite();
   write('assets/img/icons.svg', sprite);
 
