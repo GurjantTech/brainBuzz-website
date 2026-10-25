@@ -9,7 +9,7 @@ import { DIFFICULTIES, difficultyOf } from '../engine/models.js';
 import { MAX_LEVEL, levelOf, levelKey, sudokuStars } from '../engine/levels.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
-import { statGrid, appCta, confetti, liveRegion, ownsKeys } from './kit.js';
+import { statGrid, appCta, confetti, liveRegion, ownsKeys, WEB_LEVEL_LIMIT, appOnlyLevelDialog } from './kit.js';
 import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 
 const KEY = 'sudoku';
@@ -75,6 +75,13 @@ function mount(stage, meta) {
   const show = (...nodes) => { stopTimer(); clear(view).append(...nodes.filter(Boolean)); };
   const levelLabel = (g) => (g.mode === 'level' ? `Level ${g.level}` : g.mode === 'daily' ? 'Daily puzzle' : difficultyOf(g.level).label);
   const modeLabel = (g, today) => (g.mode === 'level' ? 'level puzzle' : g.mode === 'daily' ? (g.day === today ? 'today’s puzzle' : 'an earlier daily puzzle') : 'random puzzle');
+  /** Levels above the website limit are app-only: back to the level list with the app dialog on top. */
+  const appOnly = (lv) => {
+    if (lv <= WEB_LEVEL_LIMIT) return false;
+    setupView();
+    appOnlyLevelDialog(stage, lv, 'sudoku_level_limit');
+    return true;
+  };
   const dateLabel = () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
   // ---------- Setup ----------
@@ -105,7 +112,7 @@ function mount(stage, meta) {
       cont ? h('div.sd-continue', {},
         h('div', {}, h('strong', {}, 'Continue your puzzle'),
           h('span.muted', {}, ` ${levelLabel(cont)} · ${modeLabel(cont, today)} · ${formatDuration(cont.elapsed)}`)),
-        h('button.btn.btn-primary', { type: 'button', onclick: () => play(cont) }, icon('play_arrow'), h('span', {}, 'Continue'))) : null,
+        h('button.btn.btn-primary', { type: 'button', onclick: () => { if (!(cont.mode === 'level' && appOnly(cont.level))) play(cont); } }, icon('play_arrow'), h('span', {}, 'Continue'))) : null,
       h('div.lv-setup', {},
         levelHeader({ unlocked, stars }),
         picker,
@@ -119,6 +126,7 @@ function mount(stage, meta) {
   }
 
   function newGame(mode) {
+    if (mode === 'level' && appOnly(level)) return;
     let made;
     try {
       made = mode === 'level' ? S.generate(level, S.levelSeed(level)) : S.generate(DAILY_TIER, S.dailySeed(todayEpochDay(), DAILY_TIER));

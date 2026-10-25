@@ -5,6 +5,7 @@ import { brainMascot, trophy, gameIcon, goldStar, sparkleSvg, featureIcon, light
 import { ALL_GAMES, LIBRARY, Category, SAMPLE_LEVELS, ruleText } from '../assets/js/engine/models.js';
 import {
   SITE_URL, SITE_NAME, APP_NAME, PLAY_URL, PLAY_DEV_URL, APP_PRIVACY_URL, CONTACT_EMAIL, playUrl, DISCLAIMER, MORE_APPS, appUrl,
+  PLAY_LOGO,
 } from '../assets/js/lib/site.js';
 
 const CATEGORY_ICON = { MEMORY: 'psychology', LOGIC: 'extension', NUMBERS: 'calculate', VISUAL: 'visibility', WORDS: 'abc' };
@@ -113,7 +114,7 @@ function homePage() {
       <p class="home-lead">Quick brain games, memory challenges, logic puzzles and maths games, free to play, right in your browser. Pick a game, choose your level and try to beat your best.</p>
       <div class="home-actions">
         <a class="home-btn primary" href="/play/">${icon('play_arrow')}<span>Play Games Now</span>${icon('arrow_forward', 'arrow')}</a>
-        ${playButton('hero', 'Get BrainBuzz on Google Play', 'home-btn light', { playLogo: true })}
+        ${playButton('hero', 'Get BrainBuzz on Google Play', 'home-btn light')}
       </div>
       <ul class="home-checks">
         <li><span class="ok green">${icon('check')}</span>Free to play</li>
@@ -159,7 +160,7 @@ function homePage() {
   <div class="apps-grid">${MORE_APPS.map((a) => `<a class="app-card reveal" href="${esc(appUrl(a.id, 'home_more_apps'))}" rel="noopener" target="_blank" style="--c:${a.color}">
     <img class="app-card-icon" src="/assets/img/apps/${a.icon}.webp" width="192" height="192" alt="" loading="lazy" decoding="async">
     <span class="app-card-text"><span class="app-card-tag">${a.tag}</span><h3>${esc(a.name)}</h3><p>${esc(a.text)}</p></span>
-    <span class="app-card-cta">${icon('download')}Get it on Google Play${icon('arrow_forward', 'arrow')}</span>
+    <span class="app-card-cta">${PLAY_LOGO}Get it on Google Play${icon('arrow_forward', 'arrow')}</span>
   </a>`).join('')}</div>
   <div class="apps-more reveal"><a class="home-btn light" href="${PLAY_DEV_URL}" rel="noopener" target="_blank">${icon('apps')}<span>See all our apps on Google Play</span>${icon('arrow_forward', 'arrow')}</a></div>
 </div></section>
@@ -527,7 +528,7 @@ function contactPage() {
       <span class="game-art" style="--c:#ffb23f">${icon('star')}</span>
       <h2>Enjoying BrainBuzz?</h2>
       <p>A rating or review on Google Play helps other people find the app.</p>
-      <p><a class="btn btn-secondary" href="${esc(playUrl('contact_review'))}" rel="noopener" target="_blank" data-play="contact_review">${icon('android')}<span>Open Google Play</span></a></p>
+      <p><a class="btn btn-secondary" href="${esc(playUrl('contact_review'))}" rel="noopener" target="_blank" data-play="contact_review">${PLAY_LOGO}<span>Open Google Play</span></a></p>
     </div>
   </div>
   <p class="muted" style="margin-top:20px;font-size:.92rem">This site has no contact form, so nothing is collected here. Your email app opens with our address filled in.</p>

@@ -6,6 +6,12 @@ export const APP_NAME = 'BrainBuzz: Daily Challenge';
 
 /** Official Play listing (applicationId com.app.dailybrainchallenge in the Android project). */
 export const PLAY_URL = 'https://play.google.com/store/apps/details?id=com.app.dailybrainchallenge';
+/** The four-colour Google Play triangle, for every Google Play button. */
+export const PLAY_LOGO = '<svg class="play-logo" viewBox="0 0 24 26" aria-hidden="true" focusable="false">'
+  + '<path d="M1.3.7 13.6 13 1.3 25.3c-.4-.3-.6-.9-.6-1.5V2.2c0-.6.2-1.2.6-1.5z" fill="#4285f4"/>'
+  + '<path d="M17.7 8.9 13.6 13 1.3.7c.5-.4 1.3-.5 2.1-.1z" fill="#34a853"/>'
+  + '<path d="M17.7 17.1 3.4 25.4c-.8.4-1.6.3-2.1-.1L13.6 13z" fill="#ea4335"/>'
+  + '<path d="M22.3 11.5c1.1.6 1.1 2.4 0 3l-4.6 2.6-4.1-4.1 4.1-4.1z" fill="#fbbc04"/></svg>';
 /** Developer page, as linked from the app's Settings → More Apps. */
 export const PLAY_DEV_URL = 'https://play.google.com/store/apps/dev?id=8676474932665421959';
 /** Our other apps on Google Play, for the home page's "Explore Our Apps" section. */

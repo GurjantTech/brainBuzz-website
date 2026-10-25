@@ -7,7 +7,7 @@
  * start(), hintAvailable(), applyHint() and optionally onTick(ms), onTimeUp(), clockRunning(), onKey(e).
  */
 import { h, icon, clear, formatNumber, formatDuration, untilMidnight, prefersReducedMotion } from '../lib/dom.js';
-import { statGrid, appCta, confetti as confettiIn } from './kit.js';
+import { statGrid, appCta, confetti as confettiIn, WEB_LEVEL_LIMIT, appOnlyLevelDialog } from './kit.js';
 import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 import { KRandom } from '../lib/random.js';
 import { difficultyOf, accuracyOf, resultTitle } from '../engine/models.js';
@@ -131,6 +131,12 @@ export function mountShell(stage, meta, impl) {
 
   function startGame() {
     endSession();
+    // Levels above the website limit are app-only: back to the level list with the app dialog on top.
+    if (!isDaily && difficulty.level > WEB_LEVEL_LIMIT) {
+      setupView();
+      appOnlyLevelDialog(stage, difficulty.level, `${meta.type.toLowerCase()}_level_limit`);
+      return;
+    }
     if (!isDaily) store.rememberDifficulty(meta.type, levelKey(difficulty.level));
     const s = {
       alive: true,
