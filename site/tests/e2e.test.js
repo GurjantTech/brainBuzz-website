@@ -72,10 +72,11 @@ async function newPage(browser, { width = 390, mobile = true, speed = SPEED, blo
 
 async function startGame(page, slug, diff) {
   await page.goto(`${BASE}/play/${slug}/`, { waitUntil: 'networkidle0' });
-  await page.waitForSelector('.setup-actions .btn');
-  if (diff) await page.evaluate((d) => document.querySelector(`input[value="${d}"]`).click(), diff);
-  const label = await page.$eval('.setup-actions .btn', (b) => b.textContent.trim());
-  await page.click('.setup-actions .btn');
+  await page.waitForSelector('.lv-start-btn');
+  // `diff` picks a level number on the journey map (the old Easy/Medium/Hard picker is gone).
+  if (diff && /^\d+$/.test(String(diff))) await page.evaluate((d) => { const n = document.querySelectorAll('.lv-node')[d - 1]; if (n && !n.disabled) n.click(); }, Number(diff));
+  const label = await page.$eval('.lv-start-btn', (b) => b.textContent.trim());
+  await page.click('.lv-start-btn');
   await page.waitForFunction(() => !document.querySelector('.countdown-view') && document.querySelector('.hud'), { timeout: 15000 });
   return label;
 }
@@ -459,7 +460,7 @@ async function suiteGames(browser) {
       const r = await results(page);
       console.log(`    ${r.title} ${r.score} pts · ${r.stats.join(' · ')} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
       check('reaches results with a score', r.score >= 0 && r.title.length > 0);
-      check('first score is recorded as a best', /First score|New personal best/.test(r.best), `(${r.best})`);
+      check('first score is recorded as a best', /First points|New personal best/.test(r.best), `(${r.best})`);
       check('results CTA links to the Play listing', r.cta.startsWith(PLAY_URL) && r.cta.includes(`results_${plan.slug}`));
       const perfect = { MEMORY: d !== 'MEDIUM', LOGIC_PATH: true, WORD_SCRAMBLE: d === 'MEDIUM' || d === 'HARD' };
       if (perfect[type] || (type === 'MATRIX' && d === 'EASY') || (type === 'SEQUENCE' && d === 'EASY') || (type === 'ODD_ONE_OUT' && d === 'MEDIUM')) {
@@ -490,42 +491,54 @@ async function suiteGames(browser) {
 
 async function suiteDaily(browser) {
   console.log('\nDAILY');
-  const page = await newPage(browser);
-  await startGame(page, 'daily-challenge');
-  const kinds = new Set();
-  page.on('console', () => {});
-  const levels = [];
-  let n = 0;
-  while (!(await inResults(page))) {
-    const info = await page.evaluate(() => {
-      const k = document.querySelector('.quiz-kind');
-      const ready = document.querySelectorAll('.quiz-opt').length && !Array.from(document.querySelectorAll('.quiz-opt')).some((x) => /correct|wrong/.test(x.className));
-      return ready ? k.textContent : null;
-    });
-    if (!info) { await sleep(15); continue; }
-    kinds.add(info.split(' · ')[0]);
-    levels.push(info.split(' · ')[1]);
-    await answerQuiz(page);
-    n++;
-    await sleep(15);
-  }
-  const r = await results(page);
-  console.log(`    ${r.title} ${r.score} pts · ${r.stats.join(' · ')}`);
-  check('Daily has 12 puzzles', n === 12, `(${n})`);
-  check('Daily mixes maths and patterns', kinds.has('Quick Math') && kinds.has('Pattern'));
-  check('Daily questions are all Hard', levels.length === 12 && levels.every((l) => l === 'Hard'), `(${levels})`);
-  check('perfect Daily is Flawless', r.title === 'Flawless!', `(${r.title})`);
+  const today = todayEpochDay();
+  const answer = D.dailyAnswer(today);
+  const wrong = ANSWERS.map((w) => w.toUpperCase()).find((w) => w !== answer);
+  const page = await freshPage(browser, { width: 390, mobile: true });
+  await page.goto(`${BASE}/play/daily-challenge/`, { waitUntil: 'networkidle0' });
+  await page.waitForSelector('.wd-grid');
+  check('Daily: first visit opens the How to play guide', !!(await page.$('.wd-guide')));
+  await closeGuide(page);
+  const head = await page.evaluate(() => ({
+    title: document.querySelector('.game-bar .gb-title').textContent,
+    sub: document.querySelector('.game-bar .gb-sub').textContent,
+    tabs: document.querySelector('.wd-tabs').hidden,
+    count: document.querySelector('.wd-hint .count').textContent,
+  }));
+  check('Daily is today’s Word Detective word', head.title === 'Daily Challenge' && head.sub === `Word Detective #${D.puzzleNumber(today)}`, `(${head.title} / ${head.sub})`);
+  check('Daily has no Practice tab', head.tabs === true);
+  check('Daily starts with 2 hints', head.count === '2', `(${head.count})`);
+  await page.click('.wd-hint');
+  await sleep(100);
+  const hint1 = await page.evaluate(() => ({ count: document.querySelector('.wd-hint .count').textContent, ghost: document.querySelectorAll('.wd-tile.ghost').length, msg: document.querySelector('.wd-msg').textContent }));
+  check('a hint reveals a letter', hint1.count === '1' && hint1.ghost === 1 && /Hint: letter \d is [A-Z]/.test(hint1.msg), JSON.stringify(hint1));
+  await page.click('.wd-hint');
+  await sleep(100);
+  await page.click('.wd-hint');
+  await sleep(100);
+  const saved = async () => (await progress(page)).web.detective.days[today];
+  check('hints stop at 2 a day', (await saved()).hints.length === 2 && (await page.$eval('.wd-hint .count', (e) => e.textContent)) === '0');
   await page.reload({ waitUntil: 'networkidle0' });
-  await page.waitForSelector('.results');
-  const done = await page.evaluate(() => ({ text: document.querySelector('.results').textContent, start: !!document.querySelector('.setup-actions') }));
-  check('Daily can be played once per day', done.text.includes('Completed today') && !done.start);
-  check('Daily done view shows the next-set countdown', /Next challenge in \d+:\d\d:\d\d/.test(done.text));
+  await page.waitForSelector('.wd-grid');
+  check('used hints are kept after a reload', (await page.$$('.wd-tile.ghost')).length === 2 && !(await page.$('.wd-guide')));
+  await typeWord(page, wrong);
+  await typeWord(page, answer);
+  await page.waitForSelector('.wd-panel .results', { timeout: 4000 });
+  const res = await page.$eval('.wd-panel', (e) => e.textContent);
+  check('solving shows the result', /You found|Solved|2\/6/.test(res), res.slice(0, 80));
+  check('Daily result has no Practice button', !/Practice a word/.test(res));
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
-  const card = await page.evaluate(() => ({ status: document.querySelector('[data-daily-status]').textContent, next: document.querySelector('[data-daily-next]').hidden }));
-  check('home Daily card shows today’s result', card.status.startsWith('Done today: 12/12'), `(${card.status})`);
+  const card = await page.evaluate(() => ({
+    done: document.querySelector('[data-daily-done]').textContent,
+    doneShown: !document.querySelector('[data-daily-done]').hidden,
+    next: document.querySelector('[data-daily-next]').hidden,
+    cta: document.querySelector('[data-daily-cta]').textContent,
+  }));
+  check('home Daily card shows today’s result', card.doneShown && card.done.includes('Solved today in 2/6'), JSON.stringify(card));
+  check('home Daily card links to the result', card.cta.includes('View today’s result'));
   check('home Daily card shows the countdown', card.next === false);
   check('no page errors', page.errors.length === 0, page.errors.join(' | '));
-  await page.close();
+  await page.ctx.close();
 }
 
 async function suiteSite(browser) {
@@ -755,7 +768,7 @@ async function suiteMerge(browser, width) {
   for (const k of ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp']) await page.keyboard.press(k);
   await sleep(50);
   const moved = (await grid()).moves > 0;
-  await page.click('.hud-actions .btn');
+  await page.click('.game-bar .gb-label');
   const asked = await page.$('.overlay');
   if (asked) await page.click('.overlay .btn-primary');
   await sleep(50);
@@ -774,6 +787,10 @@ async function typeWord(page, word, { screen = false } = {}) {
   await sleep(950);
 }
 
+async function closeGuide(page) {
+  if (await page.$('.wd-guide')) { await page.click('.wd-guide .btn'); await sleep(50); }
+}
+
 async function suiteDetective(browser) {
   const today = todayEpochDay();
   const answer = D.dailyAnswer(today);
@@ -785,6 +802,7 @@ async function suiteDetective(browser) {
   });
   await page.goto(`${BASE}/play/word-detective/`, { waitUntil: 'networkidle0' });
   await page.waitForSelector('.wd-grid');
+  await closeGuide(page);
   check('Detective: shows today’s puzzle number', (await page.$eval('.wd-tab[aria-pressed="true"]', (e) => e.textContent)).includes(`#${D.puzzleNumber(today)}`));
   const saved = async () => ((await progress(page)).web || {}).detective || {};
   await typeWord(page, 'QXZVJ');
@@ -854,6 +872,8 @@ async function suiteDetective(browser) {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
   });
   await lose.goto(`${BASE}/play/word-detective/`, { waitUntil: 'networkidle0' });
+  await lose.waitForSelector('.wd-grid');
+  await closeGuide(lose);
   for (const w of wrongs) await typeWord(lose, w);
   await lose.waitForSelector('.wd-panel .results', { timeout: 4000 });
   const lost = await lose.$eval('.wd-panel', (e) => e.textContent);

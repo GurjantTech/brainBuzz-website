@@ -1,6 +1,11 @@
-/** Pieces shared by the timed-game shell and the website-only games: results stats, app CTA, confetti, live region. */
+/**
+ * Pieces shared by the timed-game shell and the website-only games: the game header bar, results stats,
+ * app CTA, confetti, the right-answer celebration and the live region.
+ */
 import { h, icon, prefersReducedMotion } from '../lib/dom.js';
+import { gameIcon } from '../lib/art.js';
 import { playUrl, PLAY_LOGO } from '../lib/site.js';
+import { logAnalyticsEvent } from '../lib/analytics.js';
 
 /** The Google Play triangle as an element; [chip] puts it on a white disc for coloured buttons. */
 function playLogo(chip = false) {
@@ -18,7 +23,7 @@ export function appCta(placement) {
     h('img.logo', { src: '/assets/img/logo-192.webp', width: 60, height: 60, alt: '' }),
     h('div', {},
       h('h3', {}, 'Want more brain challenges?'),
-      h('p', {}, 'Get BrainBuzz on Android to earn XP, keep a daily streak and unlock 20 achievements.')),
+      h('p', {}, 'Get BrainBuzz on Android to grow your score, keep a daily streak and unlock 20 achievements.')),
     h('a.btn.btn-light', { href: playUrl(placement), rel: 'noopener', target: '_blank', 'data-play': placement },
       playLogo(), h('span', {}, 'Get it on Google Play')));
 }
@@ -74,14 +79,15 @@ export function ticker(el, fn, ms = 1000) {
   }, ms);
 }
 
-/** The website lets you play levels 1–5 of each game; the rest are in the app. */
-export const WEB_LEVEL_LIMIT = 5;
+/** The website lets you play levels 1–2 of each game; from level 3 on, the app. */
+export const WEB_LEVEL_LIMIT = 2;
 
 /**
  * Shown when a player tries a level above WEB_LEVEL_LIMIT: points them to the app and explains that
  * website progress doesn't carry over, because the website stores no user data.
  */
 export function appOnlyLevelDialog(stage, level, placement) {
+  logAnalyticsEvent('web_level_limit', { game: placement.replace(/_level_limit$/, ''), level });
   const close = () => {
     o.remove();
     document.removeEventListener('keydown', onKey, true);
@@ -97,7 +103,7 @@ export function appOnlyLevelDialog(stage, level, placement) {
       h('img.logo', { src: '/assets/img/logo-192.webp', width: 72, height: 72, alt: '', style: { display: 'block', margin: '0 auto' } }),
       h('h2', { id: 'app-only-title' }, `Level ${level} is in the app`),
       h('div', { id: 'app-only-text', class: 'muted', style: { display: 'grid', gap: '8px' } },
-        h('p', { style: { margin: 0 } }, `You’ve played all ${WEB_LEVEL_LIMIT} website levels. Please use the BrainBuzz mobile app to play more levels.`),
+        h('p', { style: { margin: 0 } }, `You’ve played ${WEB_LEVEL_LIMIT === 2 ? 'both' : `all ${WEB_LEVEL_LIMIT}`} website levels. Please use the BrainBuzz mobile app to play more levels.`),
         h('p', { style: { margin: 0 } }, h('strong', {}, 'Your score won’t be saved. '),
           'We don’t store any user data, so you’ll start from scratch in the app.')),
       h('a.btn.btn-primary.btn-lg', { href: playUrl(placement), rel: 'noopener', target: '_blank', 'data-play': placement },
@@ -108,4 +114,69 @@ export function appOnlyLevelDialog(stage, level, placement) {
   // The level list is long, so on phones the Start button can sit far below the stage's middle.
   o.firstChild.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   o.querySelector('a').focus({ preventScroll: true });
+}
+
+/** An inline SVG from markup we write ourselves (never user content). */
+function artEl(markup) {
+  const holder = document.createElement('span');
+  holder.innerHTML = markup;
+  return holder.firstChild;
+}
+
+/**
+ * A game's header, like the app's GameHeaderBar: a bold gradient card in the game's colour (`--c` on the
+ * stage) with the game's art, title and an optional subtitle, a frosted button on the left (pause or
+ * back) and frosted action buttons on the right. Pass `leading` and `actions` as elements.
+ */
+export function gameBar({ type, title, subtitle = null, leading = null, actions = [], art = true }) {
+  const sub = h('span.gb-sub', { hidden: !subtitle }, subtitle || '');
+  const bar = h('div.game-bar', {},
+    leading,
+    // Left out when there are several actions, so the title keeps its room.
+    art ? h('span.gb-art', { 'aria-hidden': 'true' }, artEl(gameIcon(type, 'gb-icon'))) : null,
+    h('span.gb-text', {}, h('strong.gb-title', {}, title), sub),
+    h('span.gb-actions', {}, actions));
+  bar.setSubtitle = (text) => { sub.hidden = !text; sub.textContent = text || ''; };
+  return bar;
+}
+
+/** A round frosted button for the game header bar. */
+export function barButton(iconName, label, onclick, extra = {}) {
+  return h('button.gb-btn', { type: 'button', 'aria-label': label, title: label, onclick, ...extra }, icon(iconName));
+}
+
+/** Short cheers for a right answer, used in turn so they vary (the app's CHEERS). */
+export const CHEERS = ['Correct!', 'Nice!', 'Great!', 'Brilliant!', 'Awesome!', 'Sharp!'];
+let cheerCount = 0;
+export const nextCheer = () => CHEERS[cheerCount++ % CHEERS.length];
+
+/**
+ * The app's CelebrationBurst: after a right answer, sparks and dots burst out from the middle of [host],
+ * a ring of light expands and a green pill with [text] pops in and fades out, in about 0.9 s. It never
+ * takes clicks, so the next answer can be played straight away. With reduced motion only the pill shows.
+ * [y] is the burst's height as a fraction of the host (the board's middle, not the page's).
+ */
+export function celebrate(host, text, { y = 0.45 } = {}) {
+  if (!host || !host.isConnected) return;
+  host.querySelectorAll(':scope > .celebrate').forEach((el) => el.remove());
+  const still = prefersReducedMotion();
+  const layer = h('div.celebrate', { 'aria-hidden': 'true', style: { '--y': `${y * 100}%` } });
+  if (!still) {
+    layer.append(h('i.cb-ring'));
+    const colors = ['var(--c)', '#ffc531', '#22c55e', '#ff6b9a', '#4ea8ff', '#ffffff'];
+    const n = 26;
+    for (let i = 0; i < n; i++) {
+      const angle = (i / n) * Math.PI * 2 + Math.random() * 0.35;
+      const dist = 70 + Math.random() * 90;
+      const spark = h(`i.cb-spark${i % 3 === 0 ? '.star' : ''}`);
+      spark.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+      spark.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+      spark.style.setProperty('--s', `${6 + Math.random() * 7}px`);
+      spark.style.background = colors[i % colors.length];
+      layer.append(spark);
+    }
+  }
+  layer.append(h('span.cb-pill', {}, icon('check_circle'), h('span', {}, text)));
+  host.append(layer);
+  setTimeout(() => layer.remove(), still ? 800 : 1000);
 }

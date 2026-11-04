@@ -48,6 +48,8 @@ export default {
     let hintsThisBoard = 0;
     let results = '';
     let ended = false;
+    // The last board/round/word that played its celebration.
+    let celebrated = null;
     const st = { puzzle: null, tiles: [], turns: [], connected: new Set(), index: 0, solved: false, score: 0, taps: 0 };
 
     const wrap = h('div.lp-wrap', { role: 'group', 'aria-label': 'Pipe board' });
@@ -95,7 +97,11 @@ export default {
       wrap.setAttribute('aria-label', `Pipe board ${size} by ${size}. Start on row ${startRow + 1} at the left, exit on row ${endRow + 1} at the right.`);
       ui.score(st.score);
       ui.progress(`Board ${st.index + 1}/${rules.puzzles}`);
-      if (st.solved) ui.status(`Solved! +${st.lastPoints}`, 'good');
+      if (st.solved) {
+        ui.status(`Solved! +${st.lastPoints}`, 'good');
+        // Once per board, however often the board re-renders.
+        if (celebrated !== st.index) { celebrated = st.index; ui.celebrate('Connected!'); }
+      }
       else ui.status(`Link the arrow on row ${startRow + 1} to the trophy on row ${endRow + 1}`);
     }
 

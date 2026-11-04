@@ -164,6 +164,36 @@ check('Sudoku: verify rejects a non-unique puzzle', !S.verifyPuzzle(new Array(81
 check('Sudoku: fromText rejects bad saves', S.fromText('12') === null && S.fromText(null) === null && S.fromText('x'.repeat(81)) === null);
 check('Sudoku: every cell has 20 peers', S.PEERS.every((p) => p.length === 20));
 
+// Sudoku: a row, column or box completed by a cell (the app's Sudoku.completedUnits / completionText).
+{
+  const solution = S.fromText(S.FALLBACK.EASY[0][1]);
+  const values = solution.slice();
+  values[0] = 0;
+  check('Sudoku: an empty cell completes nothing', S.completedUnits(values, solution, 0).length === 0);
+  values[0] = solution[0];
+  const all = S.completedUnits(values, solution, 0);
+  check('Sudoku: filling the last gap completes its row, column and box', same(all.map((u) => u.kind), ['row', 'column', 'box']) && all.every((u) => u.cells.length === 9));
+  check('Sudoku: three at once is a "Triple"', S.completionText(all) === 'Triple complete!');
+  values[3] = 0; // same row, different box
+  const two = S.completedUnits(values, solution, 0);
+  check('Sudoku: another gap in the row leaves the column and box', same(two.map((u) => u.kind), ['column', 'box']) && S.completionText(two) === 'Column & box complete!');
+  values[3] = solution[3];
+  values[0] = (solution[0] % 9) + 1;
+  check('Sudoku: a wrong number completes nothing', S.completedUnits(values, solution, 0).length === 0);
+  check('Sudoku: one row names its number', S.completionText([{ kind: 'row', index: 3, cells: [] }]) === 'Row 4 complete!');
+  check('Sudoku: one box says "Box"', S.completionText([{ kind: 'box', index: 3, cells: [] }]) === 'Box complete!');
+}
+
+// Word Detective: daily hints reveal the leftmost unknown letter (the app's WordDetective.nextHint).
+check('Detective: two daily hints', D.DAILY_HINTS === 2);
+check('Detective: the first hint is the first letter', D.nextHint('CRANE', [], []) === 0);
+check('Detective: placed letters are skipped', D.nextHint('CRANE', ['TRAIN'], [0]) === 3 && D.nextHint('CRANE', ['TRAIN'], [0, 3]) === 4);
+check('Detective: nothing left to hint once solved', D.nextHint('CRANE', ['CRANE'], []) === null);
+{
+  const states = D.letterStates('CRANE', ['TRAIN'], [0]);
+  check('Detective: hinted letters show as placed on the keyboard', states.C === 'correct' && states.R === 'correct' && states.T === 'absent');
+}
+
 if (failures.length) {
   console.error(`✗ ${failures.length} failed, ${passed} passed`);
   for (const f of failures) console.error(`  - ${f}`);

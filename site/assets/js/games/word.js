@@ -1,5 +1,6 @@
 /** Word Scramble (WordScrambleViewModel.kt / WordScrambleScreen.kt). Tap or type to play. */
 import { h, icon, clear } from '../lib/dom.js';
+import { nextCheer } from './kit.js';
 import { wordRound, wordRoundTimeMs, clueVisibleByDefault, isCorrect, wordsPerRound } from '../engine/words.js';
 import { word as wordScore } from '../engine/scoring.js';
 
@@ -19,6 +20,8 @@ export default {
     let wordStartedAt = 0;
     let results = '';
     let ended = false;
+    // The last board/round/word that played its celebration.
+    let celebrated = null;
     const st = {
       words: [], index: 0, tiles: [], slots: [], revealed: new Set(), clueVisible: clueVisibleByDefault(d),
       status: 'typing', lastPoints: 0, score: 0, solved: 0,
@@ -85,7 +88,11 @@ export default {
       ui.score(st.score);
       ui.progress(`Word ${st.index + 1}/${total}`);
       if (st.status === 'wrong') ui.feedback('Not quite. Tap letters to rearrange them.', 'bad');
-      else if (st.status === 'solved') ui.feedback(`${w.answer}! +${st.lastPoints}`, 'good');
+      else if (st.status === 'solved') {
+        ui.feedback(`${w.answer}! +${st.lastPoints}`, 'good');
+        // Once per word, however often the board re-renders.
+        if (celebrated !== st.index) { celebrated = st.index; ui.celebrate(nextCheer()); }
+      }
       else if (st.status === 'skipped') ui.feedback(`The word was ${w.answer}.`, 'info');
       else ui.feedback(null);
     }

@@ -4,19 +4,19 @@
  */
 export const GAME_COPY = {
   DAILY: {
-    metaTitle: 'Daily Challenge: 12 Free Hard Brain Puzzles Every Day',
-    description: 'Play today’s BrainBuzz Daily Challenge free in your browser: 12 hard puzzles from all seven brain games, with a new set every midnight.',
+    metaTitle: 'Daily Challenge: A Free Daily Five-Letter Word Puzzle',
+    description: 'Play today’s BrainBuzz Daily Challenge free in your browser: crack the hidden five-letter word in six guesses, with two free hints. A new word every midnight.',
     intro: [
-      'The Daily Challenge is a fresh set of 12 Hard puzzles every day, taken from all seven games and shuffled so the same game never comes twice in a row: two quick maths sums, two number patterns, two Odd One Out grids, two 7–8 letter Word Scrambles with the clue hidden, two Memory Matrix patterns of 6 tiles to repeat in order, one Memory Match board of 6 pairs and one 5×5 Logic Path board.',
-      'Each puzzle has its own clock: 20 seconds for sums, patterns, odd ones out and memory tiles (the clock starts after the tiles have flashed), 40 seconds for a word, 45 seconds for the card pairs (after the preview) and 60 seconds for the pipe board.',
-      'Everyone gets the same puzzles on the same date, including players in the BrainBuzz Android app, so it’s a fair way to compare scores with friends. A new set arrives at midnight, your local time.',
+      'The Daily Challenge is one puzzle a day: today’s hidden five-letter word from Word Detective. You have six guesses, and every guess must be a real word. After each one, the letters show how close you are: teal with a check means the right letter in the right place, amber with a dot means the letter is in the word but somewhere else, and grey means it isn’t in the word at all.',
+      'Everyone gets the same word on the same date, including players in the BrainBuzz Android app, so it’s a fair way to compare results with friends. A new word arrives at midnight, your local time.',
+      'Solve it to build your daily streak. Your streak, best streak and the last seven days show on the BrainBuzz home page.',
     ],
-    scoring: 'Each solved puzzle is worth 200 points. You get up to 50% more the more time you have left, plus +10 for every answer in a row (up to +100).',
-    hint: 'You have 2 hints for the whole challenge. A hint helps with the puzzle in front of you: it removes two wrong answers (and shows a pattern’s rule), rules out half the odd-one-out grid, shows the hidden clue or places a letter, replays the tiles, shows every card, or turns one pipe into place.',
+    scoring: 'The daily word tracks games played, your win rate, your current and best streak, and how many guesses each win took. Each day counts once: replaying or reloading it never adds to your stats.',
+    hint: 'You have 2 free hints a day. Each one reveals a letter of the word in its right place, starting with the leftmost letter you haven’t found yet.',
     tips: [
-      'Save your hints for the puzzles you find hardest; they’re shared across all 12.',
-      'A miss resets your combo, so a careful answer beats a rushed guess.',
-      'You can play the Daily Challenge once a day in each browser. Your result stays until the next set arrives.',
+      'Start with a word that uses common letters, such as E, A, R, T and S.',
+      'Save your hints for when you’re stuck: a hinted letter shows faintly in the row you’re typing.',
+      'You can play the Daily Challenge once a day in each browser. Your result stays until the next word arrives.',
     ],
   },
   MATRIX: {
@@ -148,7 +148,7 @@ export const GAME_COPY = {
       'There’s a new daily word at midnight, your local time, and everyone gets the same word on the same date. Finish it to build your streak, then play as many practice words as you like. Practice games never change your daily stats.',
     ],
     scoring: 'The daily puzzle tracks games played, your win rate, your current and best streak, and how many guesses each win took. Each daily word counts once: replaying or reloading it never adds to your stats.',
-    hint: 'There are no hints, just the letter clues. Repeated letters are marked only as many times as they appear in the answer, so a grey second E means the word has just one.',
+    hint: 'The daily word has 2 free hints a day, each revealing a letter in its place; practice words have just the letter clues. Repeated letters are marked only as many times as they appear in the answer, so a grey second E means the word has just one.',
     tips: [
       'Start with a word that uses common letters, such as E, A, R, T and S.',
       'Use your second guess to test new letters rather than repeating the ones you know.',
