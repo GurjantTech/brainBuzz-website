@@ -52,14 +52,32 @@ export function score(answer, guess) {
 
 const RANK = { absent: 1, present: 2, correct: 3 };
 /** Best-known state of each letter for the on-screen keyboard. */
-export function letterStates(answer, guesses) {
+export function letterStates(answer, guesses, hinted = []) {
   const out = {};
   for (const g of guesses) {
     score(answer, g).forEach((m, i) => {
       if (!out[g[i]] || RANK[m] > RANK[out[g[i]]]) out[g[i]] = m;
     });
   }
+  // Hinted letters show as placed (a letter a guess already placed stays as it is).
+  for (const i of hinted) out[answer[i]] = 'correct';
   return out;
+}
+
+/** Hints for the daily word; each reveals one letter in its place (free on the website). */
+export const DAILY_HINTS = 2;
+
+/**
+ * The position a hint reveals next: the leftmost letter of [answer] that no guess has placed yet and no
+ * earlier hint revealed; null when every position is already known. The app's WordDetective.nextHint.
+ */
+export function nextHint(answer, guesses, hinted) {
+  for (let i = 0; i < answer.length; i++) {
+    if (hinted.includes(i)) continue;
+    if (guesses.some((g) => g[i] === answer[i])) continue;
+    return i;
+  }
+  return null;
 }
 
 export const emptyStats = () => ({ played: 0, won: 0, streak: 0, maxStreak: 0, lastDay: null, lastWonDay: null, dist: [0, 0, 0, 0, 0, 0] });

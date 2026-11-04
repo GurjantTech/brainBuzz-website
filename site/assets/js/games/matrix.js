@@ -17,6 +17,8 @@ export default {
     let hintThisRound = false;
     let results = '';
     let showToken = 0;
+    // The last board/round/word that played its celebration.
+    let celebrated = null;
     const st = {
       stage: 'showing', round: 1, lives: MATRIX_LIVES, gridSize: levelFor(rules, length).gridSize,
       pattern: [], lit: null, tapped: [], wrong: null, lastCleared: null, lastPoints: 0, score: 0,
@@ -64,7 +66,11 @@ export default {
       ui.lives(st.lives, MATRIX_LIVES);
       if (st.stage === 'showing') ui.status('Watch closely…');
       else if (st.stage === 'input') ui.status(`Your turn: tap ${st.pattern.length} tiles${rules.ordered ? ' in order' : ''} (${st.tapped.length}/${st.pattern.length})`);
-      else if (st.lastCleared) ui.status(`Cleared! +${st.lastPoints}`, 'good');
+      else if (st.lastCleared) {
+        ui.status(`Cleared! +${st.lastPoints}`, 'good');
+        // Once per round, however often the board re-renders.
+        if (celebrated !== st.round) { celebrated = st.round; ui.celebrate('Cleared!'); }
+      }
       else ui.status('Not quite. The outlined tiles were the pattern.', 'bad');
     }
 

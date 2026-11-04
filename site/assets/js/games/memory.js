@@ -69,6 +69,7 @@ export default {
         cards[first].matched = true;
         matchedPairs++;
         render();
+        ui.celebrate('Match!', 0.5);
         ctx.announce(`${SYMBOLS[card.symbol].name}. Match! ${matchedPairs} of ${totalPairs} pairs.`);
         if (matchedPairs === totalPairs) finish();
       } else {

@@ -1,11 +1,11 @@
 /**
- * Browser-only progress: best scores, last level, level unlocks and stars, Daily Challenge results and, under `web`,
- * the website-only games' records (2048 board, Word Detective days and stats, Sudoku progress).
+ * Browser-only progress: best scores, last level, level unlocks and stars and, under `web`, the website-only
+ * games' records (2048 board, Word Detective days and stats, which also hold the Daily Challenge, and Sudoku
+ * progress). `daily` is left from the earlier 12-puzzle Daily Challenge and is no longer written.
  * Lives in localStorage on this device only; it never syncs with the Android app.
  * Every access is guarded so private windows or blocked storage just mean "no saved data".
  */
 const KEY = 'bb-progress-v1';
-const DAILY_DAYS_KEPT = 14;
 
 function read() {
   try {
@@ -60,18 +60,6 @@ export function rememberDifficulty(type, difficulty) {
   const data = read();
   data.last[type] = difficulty;
   write(data);
-}
-
-export function dailyResult(epochDay) {
-  return read().daily[epochDay] || null;
-}
-
-export function recordDaily(epochDay, result) {
-  const data = read();
-  data.daily[epochDay] = result;
-  // Keep only recent days so storage stays tiny.
-  for (const day of Object.keys(data.daily)) if (Number(day) < epochDay - DAILY_DAYS_KEPT) delete data.daily[day];
-  return write(data);
 }
 
 /**

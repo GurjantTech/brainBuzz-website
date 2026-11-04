@@ -1,7 +1,8 @@
-/** Site chrome: theme toggle, mobile menu, header shadow, reveal-on-scroll, game cards, the Daily card and ad units. */
-import { topScore, dailyResult, webData } from './lib/store.js';
+/** Site chrome: theme toggle, mobile menu, header shadow, reveal-on-scroll, game cards, the daily streak card and ad units. */
+import { topScore, webData } from './lib/store.js';
 import { formatNumber, untilMidnight, icon, ICONS } from './lib/dom.js';
 import { todayEpochDay } from './engine/quiz.js';
+import { initAnalytics } from './lib/analytics.js';
 
 const root = document.documentElement;
 
@@ -107,28 +108,27 @@ if (filters && grid) {
   });
 }
 
-// Daily card: today's date, and once played, the result plus a countdown to the next set.
+// Daily card (Home and /play/): today's date, and once today's word is played, the result plus a countdown
+// to the next word. It reads Word Detective's saved days (the Daily Challenge is its daily word).
 const dailyCards = document.querySelectorAll('[data-daily-card]');
 if (dailyCards.length) {
   const today = todayEpochDay();
-  const done = dailyResult(today);
+  const days = webData('detective').days;
+  const day = days && typeof days === 'object' && !Array.isArray(days) ? days[today] : null;
+  const done = day && (day.done === 'won' || day.done === 'lost') ? day.done : null;
+  const guesses = done && Array.isArray(day.guesses) ? day.guesses.length : 0;
   const dateText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   dailyCards.forEach((card) => {
     const part = (sel) => card.querySelector(sel);
     part('[data-daily-date]').textContent = dateText;
     if (done) {
-      const status = part('[data-daily-status]');
-      if (status) status.textContent = `Done today: ${done.correct}/${done.total} correct · ${formatNumber(done.score)} pts`;
-      // The /play/ banner shows the result as a pill and swaps the date for the countdown.
+      // The result replaces the date, and the countdown to the next word shows.
       const donePill = part('[data-daily-done]');
-      if (donePill) {
-        donePill.lastChild.textContent = `Done today: ${done.correct}/${done.total} correct`;
-        donePill.hidden = false;
-        part('[data-daily-today]').hidden = true;
-      }
+      donePill.lastChild.textContent = done === 'won' ? `Solved today in ${guesses}/6` : 'Played today · X/6';
+      donePill.hidden = false;
+      part('[data-daily-today]').hidden = true;
       part('[data-daily-next]').hidden = false;
-      const cta = part('[data-daily-cta] span');
-      if (cta) cta.textContent = 'View today’s result';
+      part('[data-daily-cta] span').textContent = 'View today’s result';
     }
   });
   if (done) {
@@ -146,3 +146,7 @@ if (dailyCards.length) {
 document.querySelectorAll('ins.adsbygoogle:not([data-adsbygoogle-status])').forEach(() => {
   try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) { /* ads unavailable */ }
 });
+
+// Firebase Analytics starts once the page is idle, so it never delays the page or the games.
+if ('requestIdleCallback' in window) requestIdleCallback(() => initAnalytics(), { timeout: 3000 });
+else setTimeout(initAnalytics, 1500);

@@ -1,28 +1,27 @@
 /**
  * The frame every game runs in, mirroring the app's GameViewModel / GameScaffold:
- * level picker (1–100) → 3-2-1 countdown → play (HUD, hints, pause, optional round clock) → results with stars.
- * `ctx.difficulty` is a level from engine/levels.js (the Daily Challenge keeps the app's Medium).
+ * level journey (1–100) → 3-2-1 countdown → play (header bar, status panel, hints, pause, optional round clock,
+ * a celebration on each right answer) → results with stars. `ctx.difficulty` is a level from engine/levels.js.
+ * (The Daily Challenge is today's Word Detective word; it doesn't use this shell.)
  *
  * A game module exports { roundTimeMs?(difficulty), create(ctx) }. create() returns a game with
  * start(), hintAvailable(), applyHint() and optionally onTick(ms), onTimeUp(), clockRunning(), onKey(e).
  */
-import { h, icon, clear, formatNumber, formatDuration, untilMidnight, prefersReducedMotion } from '../lib/dom.js';
-import { statGrid, appCta, confetti as confettiIn, WEB_LEVEL_LIMIT, appOnlyLevelDialog } from './kit.js';
+import { h, icon, clear, formatNumber, formatDuration, prefersReducedMotion } from '../lib/dom.js';
+import { statGrid, appCta, confetti as confettiIn, WEB_LEVEL_LIMIT, appOnlyLevelDialog, gameBar, barButton, celebrate } from './kit.js';
 import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 import { KRandom } from '../lib/random.js';
-import { difficultyOf, accuracyOf, resultTitle } from '../engine/models.js';
-import { MAX_LEVEL, levelOf, levelKey, parseLevelKey, starsFor, passAccuracy, passText, MATH_PASS_CORRECT } from '../engine/levels.js';
+import { accuracyOf, resultTitle } from '../engine/models.js';
+import { MAX_LEVEL, levelOf, levelKey, parseLevelKey, starsFor, passAccuracy, MATH_PASS_CORRECT } from '../engine/levels.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
+import { logAnalyticsEvent } from '../lib/analytics.js';
 
 const NOTHING_TO_HINT = 'Nothing to hint right now.';
 
 export function mountShell(stage, meta, impl) {
-  const isDaily = meta.type === 'DAILY';
   const progress = () => store.levelProgress(meta.type, MAX_LEVEL);
-  let difficulty = isDaily
-    ? difficultyOf('MEDIUM')
-    : levelOf(Math.min(parseLevelKey(store.lastDifficulty(meta.type)) || progress().unlocked, progress().unlocked));
+  let difficulty = levelOf(Math.min(parseLevelKey(store.lastDifficulty(meta.type)) || progress().unlocked, progress().unlocked));
   let session = null;
   let rafId = 0;
 
@@ -50,7 +49,6 @@ export function mountShell(stage, meta, impl) {
 
   function setupView() {
     endSession();
-    if (isDaily) return dailySetup();
     const { unlocked, stars } = progress();
     if (difficulty.level > unlocked) difficulty = levelOf(unlocked);
     const detail = h('div');
@@ -59,66 +57,26 @@ export function mountShell(stage, meta, impl) {
       const level = difficulty.level;
       const best = store.bestScore(meta.type, levelKey(level));
       const earned = stars[level] || 0;
-      const next = level < MAX_LEVEL ? `unlock Level ${level + 1}` : 'finish all 100 levels';
-      const banner = best === null
-        ? { tone: 'todo', icon: 'lock', title: `No score on Level ${level} yet. Set one!`, text: `${passText(meta.type)} to ${next}.` }
-        : {
-          tone: 'done', icon: 'emoji_events', title: `Your best: ${formatNumber(best)} points`,
-          text: earned >= 3 ? 'Three stars! Replay to beat your best score.' : `Replay to beat it${earned ? ' and earn more stars' : ` and ${next}`}.`,
-        };
-      clear(detail).append(levelDetail({ level, stars: earned, rules: meta.rules(difficulty), banner }));
+      clear(detail).append(levelDetail({
+        level, stars: earned, rules: meta.rules(difficulty),
+        best: best === null ? null : `${formatNumber(best)} points`,
+        bestSub: earned >= 3 ? 'Three stars! Beat your best.' : 'Replay for more stars',
+      }));
       start.querySelector('.lv-start-btn span').textContent = `${earned ? 'Replay' : 'Start'} Level ${level}`;
     };
     const picker = levelPicker({
       unlocked, stars, selected: difficulty.level,
       onChange: (level) => { difficulty = levelOf(level); renderDetail(); },
+      // The current level (marked PLAY) starts straight away; other levels show their details first.
+      onPlay: (level) => { difficulty = levelOf(level); startGame(); },
     });
     renderDetail();
     show(h('div.lv-setup', {},
-      levelHeader({ unlocked, stars }),
+      levelHeader({ unlocked, stars, type: meta.type, title: meta.title }),
       picker,
       detail,
       start,
       levelNote('Levels start easy and get harder. Pass a level to unlock the next one. Progress and best scores are saved in this browser only.')));
-  }
-
-  function dailySetup() {
-    const today = todayEpochDay();
-    const done = store.dailyResult(today);
-    const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-    if (done) {
-      const countdown = h('span.countdown', {}, untilMidnight());
-      const timer = setInterval(() => {
-        if (!countdown.isConnected) return clearInterval(timer);
-        if (todayEpochDay() !== today) { clearInterval(timer); setupView(); return; }
-        countdown.textContent = untilMidnight();
-      }, 1000);
-      const acc = accuracyOf('DAILY', done.correct, done.total, 0);
-      show(h('div.results', {},
-        h('span.pill.pill-success', {}, icon('check_circle'), 'Completed today'),
-        h('h2', {}, resultTitle(acc)),
-        h('div.big-score', {}, formatNumber(done.score), h('small', {}, 'points')),
-        statGrid([
-          ['check_circle', `${done.correct}/${done.total}`, 'Correct'],
-          ['center_focus_strong', `${Math.round(acc * 100)}%`, 'Accuracy'],
-          ['bolt', `×${done.bestCombo || 0}`, 'Best combo'],
-        ]),
-        done.pattern ? patternDots(done.pattern) : null,
-        h('p', { class: 'muted', style: { margin: '0' } }, 'Next challenge in ', countdown),
-        h('div.btn-row', {}, h('a.btn.btn-primary', { href: '/play/' }, icon('apps'), h('span', {}, 'Play another game'))),
-        appCta('results_daily_done')));
-      return;
-    }
-    show(
-      h('div.setup-head', {}, h('h2', {}, 'Today’s Daily Challenge'), h('span.pill', {}, icon('calendar_month'), date)),
-      h('ul', { class: 'muted', style: { margin: '0 0 20px', paddingLeft: '1.2em' } }, [
-        ...meta.howToPlay, ...meta.rules(),
-      ].map((r) => h('li', {}, r))),
-      h('div.setup-actions', {}, h('button.btn.btn-primary.btn-lg', { type: 'button', onclick: () => startGame() },
-        icon('play_arrow'), h('span', {}, 'Start today’s challenge'))),
-      h('p.setup-note', {}, icon('check_circle'),
-        h('span', {}, 'One go per day, like in the app. Your result is saved in this browser until the next set arrives at midnight.')),
-    );
   }
 
   // ---------- Session ----------
@@ -132,12 +90,13 @@ export function mountShell(stage, meta, impl) {
   function startGame() {
     endSession();
     // Levels above the website limit are app-only: back to the level list with the app dialog on top.
-    if (!isDaily && difficulty.level > WEB_LEVEL_LIMIT) {
+    if (difficulty.level > WEB_LEVEL_LIMIT) {
       setupView();
       appOnlyLevelDialog(stage, difficulty.level, `${meta.type.toLowerCase()}_level_limit`);
       return;
     }
-    if (!isDaily) store.rememberDifficulty(meta.type, levelKey(difficulty.level));
+    store.rememberDifficulty(meta.type, levelKey(difficulty.level));
+    logAnalyticsEvent('web_game_start', { game: meta.type.toLowerCase(), level: difficulty.level });
     const s = {
       alive: true,
       phase: 'countdown',
@@ -201,7 +160,7 @@ export function mountShell(stage, meta, impl) {
     const box = h('div.countdown-view', {}, h('div', {}, h('p.count-label', {}, 'Get ready'), num));
     s.ui.board.hidden = true;
     s.ui.chrome.hidden = true;
-    s.ui.root.prepend(box);
+    s.ui.chrome.before(box);
     for (let i = 3; i >= 1; i--) {
       num.textContent = String(i);
       num.style.animation = 'none';
@@ -223,30 +182,33 @@ export function mountShell(stage, meta, impl) {
 
   function buildPlayView(s) {
     const scoreEl = h('strong', {}, '0');
-    const scoreLabel = h('small', {}, 'SCORE');
+    const scoreLabel = h('small', {}, 'POINTS');
     const progress = h('span.pill', { hidden: true });
     const extra = h('span.pill', { hidden: true });
     const lives = h('span.hud-lives', { hidden: true });
     const timeChip = h('span.pill.hud-time', { hidden: true }, icon('timer'), h('span', {}, ''));
     const hintCount = h('span.count', {}, String(s.hintsLeft));
-    const hintBtn = h('button.hud-btn.hint', {
+    // Pause and hint sit in the game's header bar, as frosted buttons (the app's GameTopBar).
+    const hintBtn = h('button.gb-btn.hint', {
       type: 'button',
       title: impl.hintDescription || 'Use a hint',
       onclick: () => useHint(s),
-    }, icon('lightbulb'), h('span', {}, 'Hint'), hintCount);
-    const pauseBtn = h('button.hud-btn', { type: 'button', 'aria-label': 'Pause', title: 'Pause (Esc)', onclick: () => pause(s) }, icon('pause'));
-    const bar = h('span');
-    const timerbar = h('div.timerbar', { hidden: true, role: 'presentation' }, bar);
+    }, icon('lightbulb'), hintCount);
+    const pauseBtn = barButton('pause', 'Pause', () => pause(s), { title: 'Pause (Esc)' });
+    const bar = gameBar({ type: meta.type, title: meta.title, subtitle: difficulty.label, leading: pauseBtn, actions: meta.hints > 0 ? [hintBtn] : [] });
+    const timerFill = h('span');
+    const timerbar = h('div.timerbar', { hidden: true, role: 'presentation' }, timerFill);
     const status = h('p.status-line', { 'aria-live': 'polite' });
     const board = h('div.board');
     const feedback = h('div.feedback', { 'aria-live': 'polite' });
+    // The status (points, progress, lives, clock) sits together in a frosted panel above the board.
     const chrome = h('div', {},
       h('div.hud', {},
         h('div.hud-score', {}, scoreLabel, scoreEl),
         progress, lives, extra, timeChip,
-        h('div.hud-actions', {}, meta.hints > 0 ? hintBtn : null, pauseBtn)),
-      timerbar, status);
-    const root = h('div', {}, chrome, board, feedback);
+        timerbar),
+      status);
+    const root = h('div.play-view', {}, bar, chrome, board, feedback);
     show(root);
 
     let feedbackTimer = 0;
@@ -269,7 +231,7 @@ export function mountShell(stage, meta, impl) {
       },
       timer(fraction, msLeft) {
         timerbar.hidden = false;
-        bar.style.transform = `scaleX(${Math.max(0, Math.min(1, fraction))})`;
+        timerFill.style.transform = `scaleX(${Math.max(0, Math.min(1, fraction))})`;
         timerbar.classList.toggle('low', fraction < 0.25);
         if (msLeft !== undefined) {
           timeChip.hidden = false;
@@ -292,6 +254,8 @@ export function mountShell(stage, meta, impl) {
         feedback.append(h(`div.feedback-msg.${tone}`, {}, icon(ic), h('span', {}, text)));
         if (ms) feedbackTimer = setTimeout(() => clear(feedback), ms);
       },
+      /** The right-answer celebration over the board ("+120", "Match!", "Cleared!"…). */
+      celebrate(text, y) { celebrate(board, text, { y }); },
       refreshHint() {
         hintCount.textContent = String(s.hintsLeft);
         hintBtn.disabled = s.hintsLeft <= 0;
@@ -339,7 +303,7 @@ export function mountShell(stage, meta, impl) {
     const overlay = h('div.overlay', { role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'pause-title' },
       h('div.overlay-card', {},
         h('h2', { id: 'pause-title' }, 'Paused'),
-        h('p.muted', { style: { margin: 0 } }, isDaily ? 'Daily Challenge' : `${meta.title} · ${difficulty.label}`),
+        h('p.muted', { style: { margin: 0 } }, `${meta.title} · ${difficulty.label}`),
         h('ul', {}, meta.howToPlay.map((t) => h('li', {}, t))),
         resumeBtn,
         h('button.btn.btn-secondary', { type: 'button', onclick: () => { overlay.remove(); startGame(); } }, icon('refresh'), h('span', {}, 'Restart')),
@@ -384,16 +348,10 @@ export function mountShell(stage, meta, impl) {
     s.phase = 'finished';
     s.waiters.length = 0;
     const full = { hintsUsed: s.hintsUsed, moves: 0, bestCombo: 0, answerPattern: '', ...outcome };
-    let record = { isBest: false, previous: null, level: null };
-    if (isDaily) {
-      store.recordDaily(s.epochDay, {
-        score: full.score, correct: full.correct, total: full.total, bestCombo: full.bestCombo, pattern: full.answerPattern,
-      });
-    } else {
-      record = store.recordScore(meta.type, levelKey(difficulty.level), full.score);
-      const stars = starsFor(meta.type, accuracyOf(meta.type, full.correct, full.total, full.moves), full);
-      record.level = store.recordLevel(meta.type, difficulty.level, stars, MAX_LEVEL);
-    }
+    const record = store.recordScore(meta.type, levelKey(difficulty.level), full.score);
+    const stars = starsFor(meta.type, accuracyOf(meta.type, full.correct, full.total, full.moves), full);
+    record.level = store.recordLevel(meta.type, difficulty.level, stars, MAX_LEVEL);
+    logAnalyticsEvent('web_game_complete', { game: meta.type.toLowerCase(), level: difficulty.level, score: full.score, stars });
     const delay = s.game.finishDelay ?? 400;
     setTimeout(() => {
       if (!s.alive) return;
@@ -420,17 +378,13 @@ export function mountShell(stage, meta, impl) {
     const lv = record.level;
     const passed = lv && lv.stars > 0;
     const celebrate = record.isBest || accuracy >= 1 || passed;
-    const bestLine = isDaily
-      ? h('span.pill.pill-success', {}, icon('check_circle'), 'Today’s challenge complete')
-      : record.isBest
-        ? h('span.pill.pill-amber', {}, icon('emoji_events'), record.previous === null ? `First score on ${difficulty.label}!` : 'New personal best!')
-        : h('span.pill', {}, icon('emoji_events'), `Your best on ${difficulty.label}: ${formatNumber(record.previous)}`);
+    const bestLine = record.isBest
+      ? h('span.pill.pill-amber', {}, icon('emoji_events'), record.previous === null ? `First points on ${difficulty.label}!` : 'New personal best!')
+      : h('span.pill', {}, icon('emoji_events'), `Your best on ${difficulty.label}: ${formatNumber(record.previous)} points`);
 
     const playLevel = (level) => { difficulty = levelOf(level); startGame(); };
     const hasNext = passed && difficulty.level < MAX_LEVEL;
-    const actions = isDaily
-      ? [h('a.btn.btn-primary', { href: '/play/' }, icon('apps'), h('span', {}, 'Play another game'))]
-      : [
+    const actions = [
         hasNext ? h('button.btn.btn-primary.next-level', { type: 'button', onclick: () => playLevel(difficulty.level + 1) },
           icon('skip_next'), h('span', {}, `Next: Level ${difficulty.level + 1}`)) : null,
         h(`button.btn.${hasNext ? 'btn-secondary' : 'btn-primary'}`, { type: 'button', onclick: () => startGame() },
@@ -449,7 +403,7 @@ export function mountShell(stage, meta, impl) {
       bestLine,
       heading,
       levelLine,
-      h('div.big-score', {}, formatNumber(o.score), h('small', {}, isDaily ? 'points' : `points · ${difficulty.label}`)),
+      h('div.big-score', {}, formatNumber(o.score), h('small', {}, `points · ${difficulty.label}`)),
       statGrid(stats),
       o.answerPattern ? h('div', { style: { display: 'grid', gap: '8px', justifyItems: 'center' } },
         h('span', { class: 'muted', style: { fontSize: '.85rem', fontWeight: 700 } }, 'Your answers'), patternDots(o.answerPattern)) : null,

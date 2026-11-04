@@ -9,7 +9,8 @@ import { DIFFICULTIES, difficultyOf } from '../engine/models.js';
 import { MAX_LEVEL, levelOf, levelKey, sudokuStars } from '../engine/levels.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
-import { statGrid, appCta, confetti, liveRegion, ownsKeys, WEB_LEVEL_LIMIT, appOnlyLevelDialog } from './kit.js';
+import { logAnalyticsEvent } from '../lib/analytics.js';
+import { statGrid, appCta, confetti, liveRegion, ownsKeys, WEB_LEVEL_LIMIT, appOnlyLevelDialog, gameBar, barButton, celebrate } from './kit.js';
 import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 
 const KEY = 'sudoku';
@@ -98,14 +99,18 @@ function mount(stage, meta) {
     const renderDetail = () => {
       const best = data.best[levelKey(level)];
       const earned = stars[level] || 0;
-      const next = level < MAX_LEVEL ? `unlock Level ${level + 1}` : 'finish all 100 levels';
-      const banner = best
-        ? { tone: 'done', icon: 'emoji_events', title: `Best time: ${formatDuration(best)}`, text: earned >= 3 ? 'Three stars! Replay to beat your time.' : 'Replay with no mistakes and no hints for three stars.' }
-        : { tone: 'todo', icon: 'lock', title: `No time on Level ${level} yet. Set one!`, text: `Solve this puzzle to ${next}.` };
-      clear(detail).append(levelDetail({ level, stars: earned, rules: meta.rules(levelOf(level)), banner }));
+      clear(detail).append(levelDetail({
+        level, stars: earned, rules: meta.rules(levelOf(level)),
+        best: best ? formatDuration(best) : null,
+        bestSub: earned >= 3 ? 'Three stars! Beat your time.' : 'No mistakes or hints for 3 stars',
+      }));
       start.querySelector('.lv-start-btn span').textContent = `${earned ? 'Replay' : 'Start'} Level ${level}`;
     };
-    const picker = levelPicker({ unlocked, stars, selected: level, onChange: (lv) => { level = lv; renderDetail(); } });
+    const picker = levelPicker({
+      unlocked, stars, selected: level, onChange: (lv) => { level = lv; renderDetail(); },
+      // The current level (marked PLAY) starts straight away; other levels show their details first.
+      onPlay: (lv) => { level = lv; newGame('level'); },
+    });
     renderDetail();
     const cont = data.current;
     show(
@@ -114,7 +119,7 @@ function mount(stage, meta) {
           h('span.muted', {}, ` ${levelLabel(cont)} · ${modeLabel(cont, today)} · ${formatDuration(cont.elapsed)}`)),
         h('button.btn.btn-primary', { type: 'button', onclick: () => { if (!(cont.mode === 'level' && appOnly(cont.level))) play(cont); } }, icon('play_arrow'), h('span', {}, 'Continue'))) : null,
       h('div.lv-setup', {},
-        levelHeader({ unlocked, stars }),
+        levelHeader({ unlocked, stars, type: TYPE, title: meta.title }),
         picker,
         detail,
         start,
@@ -136,6 +141,7 @@ function mount(stage, meta) {
       return;
     }
     save({ last: level });
+    logAnalyticsEvent('web_game_start', { game: 'sudoku', mode, level: mode === 'level' ? level : DAILY_TIER });
     play({
       mode, level: mode === 'level' ? level : DAILY_TIER, day: mode === 'daily' ? todayEpochDay() : null,
       puzzle: made.puzzle, solution: made.solution, values: made.puzzle.slice(),
@@ -155,14 +161,19 @@ function mount(stage, meta) {
 
     const timeEl = h('span', {}, formatDuration(g.elapsed));
     const mistakesEl = h('span', {}, '');
-    const hintBtn = h('button.hud-btn.hint', { type: 'button', title: 'Fill in a correct number', onclick: () => hint() }, icon('lightbulb'), h('span', {}, 'Hint'));
-    const backBtn = h('button.hud-btn', { type: 'button', 'aria-label': 'Back to puzzle menu (progress is saved)', title: 'Menu (progress is saved)', onclick: () => { persist(); setupView(); } }, icon('arrow_back'));
+    // Back and hint sit in the game's header bar, as frosted buttons.
+    const hintCount = h('span.count', { hidden: true });
+    const hintBtn = h('button.gb-btn.hint', { type: 'button', title: 'Fill in a correct number', 'aria-label': 'Hint: fill in a correct number', onclick: () => hint() }, icon('lightbulb'), hintCount);
+    const backBtn = barButton('arrow_back', 'Back to puzzle menu (progress is saved)', () => { persist(); setupView(); }, { title: 'Menu (progress is saved)' });
+    // Cells of a row, column or box just completed glow for a moment (see celebrateUnits).
+    let flash = new Set();
     const cells = Array.from({ length: 81 }, (_, i) => h('button.sd-cell', {
       type: 'button',
       'data-cell': '',
       onclick: () => select(i),
     }));
     const gridEl = h('div.sd-grid', { role: 'group', 'aria-label': 'Sudoku grid, 9 by 9' }, cells);
+    const boardEl = h('div.sd-board', {}, gridEl);
     const padDigits = Array.from({ length: 9 }, (_, k) => h('button.sd-num', {
       type: 'button',
       onclick: () => input(k + 1),
@@ -173,12 +184,11 @@ function mount(stage, meta) {
     const status = h('p.status-line.sd-status', { 'aria-live': 'polite' });
 
     show(
+      gameBar({ type: TYPE, title: meta.title, subtitle: g.mode === 'random' ? `Random puzzle · ${levelLabel(g)}` : levelLabel(g), leading: backBtn, actions: [hintBtn] }),
       h('div.hud', {},
-        h('div.hud-score', {}, h('small', {}, { level: 'SUDOKU', daily: 'TODAY’S PUZZLE', random: 'RANDOM PUZZLE' }[g.mode]), h('strong', { style: { fontSize: '1.3rem' } }, levelLabel(g))),
         h('span.pill.hud-time', { 'aria-label': 'Time' }, icon('timer'), timeEl),
-        h('span.pill', {}, icon('cancel'), mistakesEl),
-        h('div.hud-actions', {}, hintBtn, backBtn)),
-      gridEl,
+        h('span.pill', {}, icon('cancel'), mistakesEl)),
+      boardEl,
       status,
       h('div.sd-pad', { role: 'group', 'aria-label': 'Numbers' }, padDigits),
       h('div.sd-tools', {}, notesBtn, eraseBtn),
@@ -197,6 +207,7 @@ function mount(stage, meta) {
         if (i === selected) cls.push('selected');
         else if (related) cls.push('related');
         if (v && g.values[i] === v && i !== selected) cls.push('same');
+        if (flash.has(i)) cls.push('flash');
         if (S.colOf(i) % 3 === 2 && S.colOf(i) < 8) cls.push('box-r');
         if (S.rowOf(i) % 3 === 2 && S.rowOf(i) < 8) cls.push('box-b');
         cell.className = cls.join(' ');
@@ -223,7 +234,8 @@ function mount(stage, meta) {
         b.setAttribute('aria-label', left ? `${d}, ${left} left to place` : `${d}, all placed`);
       });
       mistakesEl.textContent = `${g.mistakes} ${g.mistakes === 1 ? 'mistake' : 'mistakes'}`;
-      hintBtn.querySelector('span').textContent = g.hints ? `Hint · ${g.hints}` : 'Hint';
+      hintCount.hidden = !g.hints;
+      hintCount.textContent = String(g.hints);
       notesBtn.setAttribute('aria-pressed', String(notesMode));
       notesBtn.lastChild.textContent = notesMode ? 'Notes on' : 'Notes off';
       notesBtn.classList.toggle('on', notesMode);
@@ -263,6 +275,7 @@ function mount(stage, meta) {
         announce(`${d} placed.`);
       }
       render();
+      if (d === g.solution[i]) celebrateUnits(i);
       persist();
       checkDone();
     }
@@ -305,8 +318,22 @@ function mount(stage, meta) {
       status.textContent = `Hint: ${g.solution[target]} goes in row ${S.rowOf(target) + 1}, column ${S.colOf(target) + 1}.`;
       announce(status.textContent);
       select(target);
+      celebrateUnits(target);
       persist();
       checkDone();
+    }
+
+    /** If [cell] completed its row, column or box: the celebration over the grid, and those cells glow briefly. */
+    function celebrateUnits(cell) {
+      const units = S.completedUnits(g.values, g.solution, cell);
+      if (!units.length || g.values.every((v, i) => v === g.solution[i])) return;
+      const text = S.completionText(units);
+      flash = new Set(units.flatMap((u) => u.cells));
+      render();
+      celebrate(boardEl, text, { y: 0.3 });
+      announce(text);
+      const shown = flash;
+      setTimeout(() => { if (flash === shown && gridEl.isConnected) { flash = new Set(); render(); } }, 900);
     }
 
     function checkDone() {
@@ -381,6 +408,7 @@ function mount(stage, meta) {
       daily[g.day] = forDay;
       for (const d of Object.keys(daily)) if (Number(d) < g.day - DAYS_KEPT) delete daily[d];
     }
+    logAnalyticsEvent('web_game_complete', { game: 'sudoku', mode: g.mode, level: g.level, time_ms: ms, mistakes: g.mistakes, hints: g.hints });
     const lv = g.mode === 'level' ? store.recordLevel(TYPE, g.level, sudokuStars(g.mistakes, g.hints), MAX_LEVEL) : null;
     // A replayed daily or level puzzle doesn't add to the solved count again.
     const solved = data.solved + (g.mode === 'random' || firstToday || (lv && !lv.previousStars) ? 1 : 0);

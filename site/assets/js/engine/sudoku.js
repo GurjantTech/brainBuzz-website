@@ -23,6 +23,33 @@ export const rowOf = (i) => Math.floor(i / 9);
 export const colOf = (i) => i % 9;
 export const boxOf = (i) => Math.floor(rowOf(i) / 3) * 3 + Math.floor(colOf(i) / 3);
 
+/** The cells of a row, column or 3×3 box, by kind ('row' | 'column' | 'box') and 0-based index. */
+export function unitCells(kind, index) {
+  const of = { row: rowOf, column: colOf, box: boxOf }[kind];
+  return Array.from({ length: SIZE }, (_, i) => i).filter((i) => of(i) === index);
+}
+
+/**
+ * The units through [cell] (its row, column and box) that are now completely and correctly filled in
+ * [values] against [solution], as { kind, index, cells }. Empty when the cell isn't right or nothing is
+ * complete. The app's Sudoku.completedUnits.
+ */
+export function completedUnits(values, solution, cell) {
+  if (!values[cell] || values[cell] !== solution[cell]) return [];
+  return [['row', rowOf(cell)], ['column', colOf(cell)], ['box', boxOf(cell)]]
+    .map(([kind, index]) => ({ kind, index, cells: unitCells(kind, index) }))
+    .filter((u) => u.cells.every((i) => values[i] !== 0 && values[i] === solution[i]));
+}
+
+/** What the celebration says for [units] just completed: "Row 4 complete!", "Box complete!", "Row & box complete!"… */
+export function completionText(units) {
+  const label = (k) => k[0].toUpperCase() + k.slice(1);
+  if (units.length === 0) return '';
+  if (units.length === 1) return units[0].kind === 'box' ? 'Box complete!' : `${label(units[0].kind)} ${units[0].index + 1} complete!`;
+  if (units.length === 2) return `${label(units[0].kind)} & ${units[1].kind} complete!`;
+  return 'Triple complete!';
+}
+
 /** The 20 cells sharing a row, column or box with each cell. */
 export const PEERS = Array.from({ length: SIZE }, (_, i) => {
   const out = [];

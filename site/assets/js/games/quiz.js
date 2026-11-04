@@ -108,6 +108,8 @@ export function quizGame(type) {
         else if (selected === null) msg = `Time's up! ${q.explanation}`;
         else msg = q.explanation;
         ui.feedback(msg, correct ? 'good' : 'bad');
+        // The right-answer celebration over the question, with the points earned.
+        if (correct) ui.celebrate(`+${points}`, 0.3);
         ctx.announce(correct ? `Correct. ${msg}` : `Wrong. ${msg}`);
       }
 

@@ -150,6 +150,7 @@ export default {
       render();
       const msg = correct ? `Correct! +${points}` : selected === null ? `Time's up! ${p.explanation}` : p.explanation;
       ui.feedback(msg, correct ? 'good' : 'bad');
+      if (correct) ui.celebrate('Found it!');
       ctx.announce(msg);
       // Wrong answers stay up longer so the explanation can be read.
       await ctx.wait(correct ? 700 : 2000);

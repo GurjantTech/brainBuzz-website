@@ -2,7 +2,8 @@
 import { h, icon, clear, formatNumber } from '../lib/dom.js';
 import * as M from '../engine/merge.js';
 import * as store from '../lib/store.js';
-import { statGrid, appCta, confetti, liveRegion, ownsKeys } from './kit.js';
+import { logAnalyticsEvent } from '../lib/analytics.js';
+import { statGrid, appCta, confetti, liveRegion, ownsKeys, gameBar } from './kit.js';
 
 const KEY = 'merge';
 const BEST = ['MERGE', 'CLASSIC']; // bests[type][level], so game cards show it like other games
@@ -35,11 +36,15 @@ function mount(stage, meta) {
   const status = h('p.m2-status', { 'aria-live': 'off' });
 
   view.append(
+    // The game's header bar, with a frosted New button, like the app's.
+    gameBar({
+      type: 'MERGE', title: meta.title,
+      leading: h('a.gb-btn', { href: '/play/', 'aria-label': 'All games', title: 'All games' }, icon('arrow_back')),
+      actions: [h('button.gb-btn.gb-label', { type: 'button', onclick: () => askNewGame() }, icon('refresh'), h('span', {}, 'New'))],
+    }),
     h('div.hud', {},
-      h('div.hud-score', {}, h('small', {}, 'SCORE'), scoreEl),
-      bestEl,
-      h('div.hud-actions', {},
-        h('button.btn.btn-secondary.btn-sm', { type: 'button', onclick: () => askNewGame() }, icon('refresh'), h('span', {}, 'New game')))),
+      h('div.hud-score', {}, h('small', {}, 'POINTS'), scoreEl),
+      bestEl),
     boardEl,
     status,
     h('p.m2-help', {}, 'Swipe on the board, or use the arrow keys (or W A S D). Equal tiles merge when they slide into each other.'),
@@ -112,6 +117,7 @@ function mount(stage, meta) {
       keepPlaying = false;
       moves = 0;
       status.textContent = '';
+      logAnalyticsEvent('web_game_start', { game: 'merge' });
     }
     over = false;
     renderTiles();
@@ -187,6 +193,7 @@ function mount(stage, meta) {
   }
 
   function gameOver() {
+    logAnalyticsEvent('web_game_complete', { game: 'merge', score: game.score, moves, reached_2048: won });
     const isBest = game.score > 0 && game.score >= best;
     if (isBest) confetti(stage);
     announce(`No moves left. Final score ${formatNumber(game.score)}.`);

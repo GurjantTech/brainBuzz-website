@@ -4,7 +4,8 @@ import { gameByType } from '../engine/models.js';
 import { h, icon, clear } from '../lib/dom.js';
 
 const loaders = {
-  DAILY: () => import('./daily.js').then((m) => m.default),
+  // The Daily Challenge is today's Word Detective word, like in the app: the daily word only, no Practice.
+  DAILY: () => import('./detective.js').then((m) => ({ mount: (stage, meta) => m.default.mount(stage, meta, { dailyOnly: true }) })),
   MATH: () => import('./quiz.js').then((m) => m.quizGame('MATH')),
   SEQUENCE: () => import('./quiz.js').then((m) => m.quizGame('SEQUENCE')),
   MATRIX: () => import('./matrix.js').then((m) => m.default),
@@ -22,7 +23,7 @@ const stage = document.getElementById('game');
 const meta = stage && gameByType(stage.dataset.game);
 if (stage && meta && loaders[meta.type]) {
   loaders[meta.type]()
-    .then((impl) => (meta.web ? impl.mount(stage, meta) : mountShell(stage, meta, impl)))
+    .then((impl) => (meta.web || meta.type === 'DAILY' ? impl.mount(stage, meta) : mountShell(stage, meta, impl)))
     .catch((err) => {
       console.error(err);
       clear(stage).append(h('div.stage-loading', {},

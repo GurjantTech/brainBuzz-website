@@ -1,10 +1,12 @@
 /**
- * "Choose a level" screen pieces shared by the timed-game shell and Sudoku: the header with stars and
- * progress, the 1–100 level grid in pages of 20, the selected level's card, the Start button and star rows.
+ * "Level journey" pieces shared by the timed-game shell and Sudoku, like the app's LevelSelectScreen: a
+ * header in the game's colours with its art, level, tier and progress; the 100 levels in pages of 20 as a
+ * winding path (the current level pulses and starts the game straight away); the selected level's card
+ * (medallion, tier, tagline, stars, rules, reward and best); the Start button and star rows.
  */
 import { h, icon, clear, gridKeys } from '../lib/dom.js';
 import { MAX_LEVEL, tierOf } from '../engine/levels.js';
-import { brainMascot } from '../lib/art.js';
+import { gameIcon } from '../lib/art.js';
 
 const PER_PAGE = 20;
 const PAGES = Math.ceil(MAX_LEVEL / PER_PAGE);
@@ -29,74 +31,97 @@ function art(markup, cls, viewBox) {
   return el;
 }
 
-const starPoints = (cx, cy, r, inner = 0.45) => Array.from({ length: 10 }, (_, i) => {
-  const rad = i % 2 === 0 ? r : r * inner;
-  const a = ((-90 + 36 * i) * Math.PI) / 180;
-  return `${(cx + rad * Math.cos(a)).toFixed(1)},${(cy + rad * Math.sin(a)).toFixed(1)}`;
-}).join(' ');
-
-/** The brain mascot cheering beside a big star (assets/js/lib/art.js), as an element. */
-function headerArt() {
+/** The game's art from art.js (markup we write ourselves) as an element. */
+function gameArt(type) {
   const holder = document.createElement('span');
-  holder.innerHTML = brainMascot({ id: 'lvM', cls: 'lv-art' });
+  holder.innerHTML = gameIcon(type, 'lv-hero-icon');
   return holder.firstChild;
 }
 
-/** "Choose a level" header with stars earned and how far through the 100 levels the player is. */
-export function levelHeader({ unlocked, stars }) {
+/**
+ * The page's header, in the game's colours (`--c` on the stage): "Level journey", the game's name and art,
+ * pills for the current level and its tier, the stars earned and a progress bar across all levels.
+ * @param opts {{ unlocked: number, stars: Object<number, number>, type: string, title: string }}
+ */
+export function levelHeader({ unlocked, stars, type, title }) {
   const earned = totalStars(stars);
-  const pct = Math.round((unlocked / MAX_LEVEL) * 100);
-  return h('div.lv-head', {},
-    h('div.lv-head-text', {},
-      h('h2', {}, 'Choose ', h('span.lv-a', {}, 'a'), ' level'),
-      h('p', {}, 'Complete levels, earn stars and unlock new challenges!')),
-    headerArt(),
-    h('div.lv-stats', {},
-      h('div.lv-stats-top', {}, icon('star'),
-        h('div', {}, h('strong', {}, `${earned}/${MAX_LEVEL * 3} stars`), h('span', {}, `Level ${unlocked} of ${MAX_LEVEL}`))),
-      h('div.lv-progress', {},
-        h('span.lv-bar', { role: 'progressbar', 'aria-label': 'Levels unlocked', 'aria-valuemin': 0, 'aria-valuemax': MAX_LEVEL, 'aria-valuenow': unlocked },
-          h('span', { style: { width: `${Math.max(pct, 2)}%` } })),
-        h('b', {}, `${pct}%`))));
+  const pct = Math.round(((unlocked - 1) / (MAX_LEVEL - 1)) * 100);
+  return h('div.lv-hero', {},
+    h('div.lv-hero-top', {},
+      h('span.lv-hero-pill.stars-pill', { role: 'img', 'aria-label': `${earned} of ${MAX_LEVEL * 3} stars` }, icon('star'), `${earned}/${MAX_LEVEL * 3}`)),
+    h('div.lv-hero-main', {},
+      h('div.lv-hero-text', {},
+        h('p.lv-kicker', {}, 'Level journey'),
+        h('h2', {}, title),
+        h('div.lv-hero-pills', {},
+          h('span.lv-hero-pill', {}, icon('play_arrow'), `Level ${unlocked}`),
+          h('span.lv-hero-pill', {}, icon('bolt', 'gold'), TIER[tierOf(unlocked)].label))),
+      h('span.lv-hero-art', { 'aria-hidden': 'true' }, gameArt(type))),
+    h('div.lv-hero-progress', {},
+      h('span.lv-hero-bar', { role: 'progressbar', 'aria-label': 'Levels unlocked', 'aria-valuemin': 1, 'aria-valuemax': MAX_LEVEL, 'aria-valuenow': unlocked },
+        h('span', { style: { width: `${Math.max(pct, 3)}%` } })),
+      h('div.lv-hero-progress-text', {}, h('span', {}, `Level ${unlocked} of ${MAX_LEVEL}`), h('span', {}, `${pct}% complete`))));
 }
 
+const COLUMNS = 4;
+
 /**
- * The level grid. Levels above `unlocked` are locked.
- * @param opts {{ unlocked: number, stars: Object<number, number>, selected: number, onChange: (level: number) => void }}
+ * The levels as a winding path, like a game map: rows of four that snake left to right, then right to left,
+ * joined by a line that is solid as far as the player has reached and dotted beyond. Every tenth level is a
+ * "boss" with a crown. Tapping the current level calls `onPlay` (it starts straight away, no details first);
+ * tapping another unlocked level selects it and calls `onChange`. Levels above `unlocked` are locked.
+ * @param opts {{ unlocked: number, stars: Object<number, number>, selected: number, onChange: (level: number) => void, onPlay?: (level: number) => void }}
  */
-export function levelPicker({ unlocked, stars, selected, onChange }) {
+export function levelPicker({ unlocked, stars, selected, onChange, onPlay }) {
   let page = Math.floor((selected - 1) / PER_PAGE);
   const tabs = h('div.lv-pages', { role: 'group', 'aria-label': 'Level pages' });
-  const grid = h('div.lv-grid', { role: 'group', 'aria-label': 'Levels' });
-  gridKeys(grid, () => (innerWidth < 560 ? 5 : 10));
+  const grid = h('div.lv-path', { role: 'group', 'aria-label': 'Levels' });
+  gridKeys(grid, () => COLUMNS);
 
   function render(focusSelected = false) {
     clear(tabs).append(...Array.from({ length: PAGES }, (_, p) => {
       const from = p * PER_PAGE + 1;
       const to = Math.min(from + PER_PAGE - 1, MAX_LEVEL);
+      const locked = from > unlocked;
+      let complete = true;
+      for (let lv = from; lv <= to; lv++) if (!stars[lv]) { complete = false; break; }
       return h('button.lv-page', {
-        type: 'button', 'aria-pressed': String(p === page), disabled: from > unlocked,
-        'aria-label': `Levels ${from} to ${to}${from > unlocked ? ', locked' : ''}`,
+        type: 'button', 'aria-pressed': String(p === page), disabled: locked,
+        'aria-label': `Levels ${from} to ${to}${locked ? ', locked' : complete ? ', all passed' : ''}`,
         onclick: () => { page = p; render(); },
-      }, `${from}–${to}`);
+      }, locked ? icon('lock') : complete ? icon('check') : null, `${from}–${to}`);
     }));
     const from = page * PER_PAGE + 1;
-    clear(grid).append(...Array.from({ length: Math.min(PER_PAGE, MAX_LEVEL - from + 1) }, (_, i) => {
+    const count = Math.min(PER_PAGE, MAX_LEVEL - from + 1);
+    const nodes = Array.from({ length: count }, (_, i) => {
       const level = from + i;
       const locked = level > unlocked;
+      const current = level === unlocked;
       const s = stars[level] || 0;
-      const btn = h('button.lv-btn', {
+      const row = Math.floor(i / COLUMNS);
+      const inRow = i % COLUMNS;
+      const col = row % 2 === 0 ? inRow : COLUMNS - 1 - inRow;
+      const boss = level % 10 === 0;
+      const btn = h('button.lv-node', {
         type: 'button', 'data-cell': i, 'data-level': level, disabled: locked, 'aria-pressed': String(level === selected),
-        'aria-label': locked ? `Level ${level}, locked` : `Level ${level}${s ? `, ${s} of 3 stars` : level === unlocked ? ', next to play' : ''}`,
+        'aria-label': `Level ${level}${boss ? ', boss level' : ''}${locked ? ', locked' : current ? ', next to play' : s ? `, ${s} of 3 stars` : ''}`,
+        style: { gridRow: String(row + 1), gridColumn: String(col + 1) },
         onclick: () => {
+          if (current && onPlay) { onPlay(level); return; }
           selected = level;
           render(true);
           onChange(level);
         },
-      }, locked ? icon('lock') : null, h('strong', {}, String(level)), locked ? null : starRow(s, 'mini'));
-      if (level === unlocked && !locked && !s) btn.classList.add('next');
+      },
+      h('span.lv-dot', {}, locked ? icon('lock') : h('strong', {}, String(level)),
+        boss ? h('span.lv-crown', { 'aria-hidden': 'true' }, icon('workspace_premium')) : null),
+      current ? h('span.lv-play', {}, 'PLAY') : locked ? h('span.lv-num', {}, String(level)) : starRow(s, 'mini'));
+      btn.classList.toggle('done', !locked && !current);
+      btn.classList.toggle('current', current);
+      btn.classList.toggle('locked', locked);
       return btn;
-    }));
+    });
+    clear(grid).append(pathLine(count, from, unlocked), ...nodes);
     if (focusSelected) {
       const btn = grid.querySelector(`[data-level="${selected}"]`);
       if (btn) btn.focus({ preventScroll: true });
@@ -104,6 +129,35 @@ export function levelPicker({ unlocked, stars, selected, onChange }) {
   }
   render();
   return h('div.lv-picker', {}, tabs, grid);
+}
+
+/**
+ * The line joining a page's levels, behind the nodes, in a 0–100 × rows*100 coordinate box: straight
+ * along each row and a loop past the row's end down to the next one. Solid up to the current level.
+ */
+function pathLine(count, from, unlocked) {
+  const rows = Math.ceil(count / COLUMNS);
+  const center = (i) => {
+    const row = Math.floor(i / COLUMNS);
+    const inRow = i % COLUMNS;
+    const col = row % 2 === 0 ? inRow : COLUMNS - 1 - inRow;
+    return [((col + 0.5) / COLUMNS) * 100, row * 100 + 34];
+  };
+  const segs = [];
+  for (let i = 0; i < count - 1; i++) {
+    const [ax, ay] = center(i);
+    const [bx, by] = center(i + 1);
+    let d;
+    if (ay === by) d = `M${ax} ${ay}L${bx} ${by}`;
+    else {
+      const bulge = (ax > 50 ? 1 : -1) * 14;
+      d = `M${ax} ${ay}C${ax + bulge} ${ay} ${bx + bulge} ${by} ${bx} ${by}`;
+    }
+    segs.push(`<path d="${d}" class="${from + i + 1 <= unlocked ? 'on' : 'off'}"/>`);
+  }
+  const el = art(segs.join(''), 'lv-line', `0 0 100 ${rows * 100}`);
+  el.setAttribute('preserveAspectRatio', 'none');
+  return el;
 }
 
 const TIER = {
@@ -118,57 +172,42 @@ function tagline(level) {
   return TIER[tierOf(level)].line;
 }
 
-/** Gold hexagon badge with the level number on a purple ribbon showing the stars earned. */
-function badge(level, stars) {
-  const hex = (r, cy) => [-90, -30, 30, 90, 150, 210].map((d) => {
-    const a = (d * Math.PI) / 180;
-    return `${(60 + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
-  }).join(' ');
-  const size = String(level).length > 2 ? 26 : String(level).length > 1 ? 32 : 38;
-  const markup = `
-    <defs>
-      <linearGradient id="lvGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe372"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
-      <linearGradient id="lvGoldIn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd54a"/><stop offset="1" stop-color="#ffb000"/></linearGradient>
-      <linearGradient id="lvRibbon" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6d3df2"/><stop offset="1" stop-color="#9b5cff"/></linearGradient>
-    </defs>
-    <polygon points="${hex(42, 44)}" fill="url(#lvGold)" stroke="#d97706" stroke-width="3" stroke-linejoin="round"/>
-    <polygon points="${hex(32, 44)}" fill="url(#lvGoldIn)" stroke="#fff3c4" stroke-width="2" stroke-linejoin="round"/>
-    <text x="60" y="${44 + size * 0.36}" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="${size}"
-      fill="#fff8e1" stroke="#9a4a00" stroke-width="3" paint-order="stroke">${level}</text>
-    <path d="M4 70l12-6v28L4 98l6-14z" fill="#4b23b8"/><path d="M116 70l-12-6v28l12 6-6-14z" fill="#4b23b8"/>
-    <path d="M14 66h92v24H14z" fill="url(#lvRibbon)"/>
-    ${[40, 60, 80].map((x, i) => `<polygon points="${starPoints(x, 78, 8)}" fill="${i < stars ? '#ffd54a' : '#2b1873'}" stroke="${i < stars ? '#f59e0b' : 'none'}" stroke-width="1"/>`).join('')}`;
-  return art(markup, 'lv-badge', '0 0 120 100');
-}
-
 /**
- * The selected level's card: badge, title, tier, tagline, earned stars, rule cards and a banner
- * (best score or what it takes to pass).
- * @param opts {{ level: number, stars: number, rules: Array<{icon,title,sub}>, banner: { tone, icon, title, text } }}
+ * The selected level's card, like the app's level sheet: a header in the game's colours with the level's
+ * medallion (a crown on boss levels), tier, tagline and stars; "What to expect" (the level's rules); then
+ * a Reward tile (what passing unlocks) beside the player's best.
+ * @param opts {{ level: number, stars: number, rules: Array<{icon,title,sub}>, best: string|null, bestSub: string }}
  */
-export function levelDetail({ level, stars, rules, banner }) {
+export function levelDetail({ level, stars, rules, best, bestSub }) {
   const tier = tierOf(level);
   return h('section.lv-detail', { 'aria-live': 'polite', 'aria-label': `Level ${level}` },
-    h('div.lv-detail-top', {},
-      badge(level, stars),
-      h('div.lv-detail-title', {},
+    h('div.lv-sheet-hero', {},
+      h('span.lv-medal', {}, h('strong', {}, String(level)),
+        level % 10 === 0 ? h('span.lv-crown', { title: 'Boss level' }, icon('workspace_premium')) : null),
+      h('div.lv-sheet-title', {},
         h('div.lv-title-row', {}, h('h3', {}, `Level ${level}`), h(`span.lv-tier.${tier.toLowerCase()}`, {}, TIER[tier].label)),
-        h('p', {}, tagline(level))),
-      starRow(stars, 'lv-earned')),
+        h('p', {}, tagline(level)),
+        h('span.stars.lv-earned', { role: 'img', 'aria-label': `${stars} of 3 stars earned` },
+          [1, 2, 3].map((i) => icon('star', i <= stars ? 'on' : ''))))),
+    h('p.lv-section', {}, 'What to expect'),
     h('div.lv-rules', {}, rules.map((r, i) => h(`div.lv-rule.tone-${['blue', 'pink', 'amber', 'green'][i % 4]}`, {},
       h('span.lv-rule-icon', {}, r.icon === 'abc' ? h('b', {}, 'ABC') : icon(r.icon)),
       h('span.lv-rule-text', {}, h('strong', {}, r.title), h('span', {}, r.sub))))),
-    h(`div.lv-banner.${banner.tone}`, {},
-      h('span.lv-banner-icon', {}, icon(banner.icon)),
-      h('span', {}, h('strong', {}, banner.title), h('span', {}, banner.text))));
+    h('div.lv-tiles', {},
+      h('div.lv-tile.reward', {},
+        h('span.lv-tile-label', {}, icon('trending_up'), 'Reward'),
+        h('strong', {}, level < MAX_LEVEL ? `Unlocks Level ${level + 1}` : `Finishes all ${MAX_LEVEL} levels`),
+        h('span', {}, 'Earn up to 3 stars')),
+      h('div.lv-tile.best', {},
+        h('span.lv-tile-label', {}, icon('emoji_events'), 'Your best'),
+        h('strong', {}, best || 'Not played yet'),
+        h('span', {}, best ? bestSub : 'Set your first best!'))));
 }
 
-/** The big gradient Start button, with a little burst on each side. */
+/** The big Start button, in the game's colours. */
 export function startButton(label, onclick, cls = '') {
   return h(`div.lv-start${cls ? `.${cls}` : ''}`, {},
-    h('span.lv-burst.left', { 'aria-hidden': 'true' }, h('i'), h('i'), h('i')),
-    h('button.lv-start-btn', { type: 'button', onclick }, icon('play_arrow'), h('span', {}, label)),
-    h('span.lv-burst.right', { 'aria-hidden': 'true' }, h('i'), h('i'), h('i')));
+    h('button.lv-start-btn', { type: 'button', onclick }, icon('play_arrow'), h('span', {}, label)));
 }
 
 export function levelNote(text) {
