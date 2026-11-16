@@ -8,7 +8,7 @@
  * start(), hintAvailable(), applyHint() and optionally onTick(ms), onTimeUp(), clockRunning(), onKey(e).
  */
 import { h, icon, clear, formatNumber, formatDuration, prefersReducedMotion } from '../lib/dom.js';
-import { statGrid, appCta, confetti as confettiIn, WEB_LEVEL_LIMIT, appOnlyLevelDialog, gameBar, barButton, celebrate } from './kit.js';
+import { statGrid, confetti as confettiIn, gameBar, barButton, celebrate } from './kit.js';
 import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 import { KRandom } from '../lib/random.js';
 import { accuracyOf, resultTitle } from '../engine/models.js';
@@ -89,12 +89,6 @@ export function mountShell(stage, meta, impl) {
 
   function startGame() {
     endSession();
-    // Levels above the website limit are app-only: back to the level list with the app dialog on top.
-    if (difficulty.level > WEB_LEVEL_LIMIT) {
-      setupView();
-      appOnlyLevelDialog(stage, difficulty.level, `${meta.type.toLowerCase()}_level_limit`);
-      return;
-    }
     store.rememberDifficulty(meta.type, levelKey(difficulty.level));
     logAnalyticsEvent('web_game_start', { game: meta.type.toLowerCase(), level: difficulty.level });
     const s = {
@@ -408,7 +402,6 @@ export function mountShell(stage, meta, impl) {
       o.answerPattern ? h('div', { style: { display: 'grid', gap: '8px', justifyItems: 'center' } },
         h('span', { class: 'muted', style: { fontSize: '.85rem', fontWeight: 700 } }, 'Your answers'), patternDots(o.answerPattern)) : null,
       h('div.btn-row', {}, actions),
-      appCta(`results_${meta.slug}`),
       h('p.results-note', {}, 'Saved in this browser only. Website scores don’t sync with the Android app.'),
     ));
     if (celebrate) confetti();

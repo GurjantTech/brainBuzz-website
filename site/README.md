@@ -21,7 +21,8 @@ npm run test:e2e     # plays every game at every level in Chrome (server must be
 ```
 src/
   layout.js           <head> (SEO, Open Graph, CSP), header, footer, Play badge helpers
-  pages.js            Every page: home, /play/, 11 game pages, about, privacy, contact, 404
+  pages.js            Every page: home, /play/, 11 game pages, guides, about, privacy, contact, 404
+  guides.js           Strategy guides, each with a publish date (see Guides below)
   content.js          Per-game copy (intro, scoring, tips). Numbers match the engine rules
   icons/              Material Symbols Rounded (the app's icon set), built into one sprite
 assets/
@@ -76,6 +77,14 @@ Deliberate web differences, stated on the site:
 - **Sudoku Daily** (`/play/sudoku/`): puzzles are generated in the browser from a seeded `KRandom` (the same per date and level). Clues are removed only while the solution stays unique; Easy and Medium must stay solvable with singles, and Hard prefers puzzles that need more. Every puzzle is verified before use, with a bundled, verified fallback set if generation ever fails.
 
 The guess list in `detective-words.js` is the five-letter words of SCOWL (wamerican), © 2000-2011 Kevin Atkinson, used under its permissive licence (notice kept in the file). The answer list was written for BrainBuzz.
+
+## Guides (`/guides/`)
+
+`src/guides.js` holds the strategy articles. Each has a `published` date (YYYY-MM-DD): the build leaves out guides dated after the build date, and the deploy workflow also runs daily at 00:15 UTC, so a guide with a future date goes live on its day with no push needed. Set `updated` when you revise one; it becomes the sitemap `<lastmod>`.
+
+- Preview the site as it will be on a date: `BUILD_DATE=2026-12-20 npm run build`.
+- The numbers in the guides were measured with this site's engine (word statistics, 2048 simulations, the real Sudoku level 1 puzzle). If you change a word list or game rule, re-check the guide that quotes it.
+- GitHub pauses scheduled workflows after 60 days without commits; push something or re-enable it under Actions if guides stop appearing.
 
 ## Play Store links
 

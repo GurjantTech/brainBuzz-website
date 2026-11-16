@@ -17,14 +17,11 @@ export const playBadge = (placement) =>
 /** The Play triangle on a white disc, so it stays visible on coloured buttons. */
 export const PLAY_CHIP = `<span class="play-logo-chip">${PLAY_LOGO}</span>`;
 
-/** A button to the app on Google Play, with the Play triangle. */
-export const playButton = (placement, label = 'Get BrainBuzz on Google Play', cls = 'btn btn-secondary btn-lg') =>
-  `<a class="${cls}" href="${esc(playUrl(placement))}" rel="noopener" target="_blank" data-play="${placement}">${PLAY_LOGO}<span>${label}</span></a>`;
-
 const NAV = [
   { href: '/', label: 'Home' },
   { href: '/play/', label: 'Play Games' },
   { href: '/play/daily-challenge/', label: 'Daily Challenge' },
+  { href: '/guides/', label: 'Guides' },
   { href: '/about/', label: 'About' },
 ];
 
@@ -65,6 +62,7 @@ const adPreview = (html) => html.replace(
 
 function isCurrent(href, path) {
   if (href === '/') return path === '/';
+  if (href === '/guides/') return path.startsWith('/guides/');
   if (href === '/play/') return path === '/play/' || (path.startsWith('/play/') && path !== '/play/daily-challenge/');
   return path === href;
 }
@@ -109,7 +107,6 @@ function footer() {
           <span class="brand-name">BrainBuzz<small>Daily Challenge</small></span>
         </a>
         <p>${TAGLINE} Quick brain games for memory, logic, words and maths, in your browser and on Android.</p>
-        <div>${playBadge('footer')}</div>
       </div>
       <div>
         <h2>Games</h2>
@@ -119,6 +116,7 @@ function footer() {
         <h2>BrainBuzz</h2>
         <ul>
           <li><a href="/play/">All games</a></li>
+          <li><a href="/guides/">Guides</a></li>
           <li><a href="/about/">About</a></li>
           <li><a href="/contact/">Contact</a></li>
           <li><a href="/privacy/">Privacy Policy</a></li>
@@ -141,7 +139,7 @@ function footer() {
 }
 
 /**
- * @param page {{ path, title, description, body, jsonLd?, ogImage?, noindex?, scripts?, bodyClass?, fullTitle?, ads? }}
+ * @param page {{ path, title, description, body, jsonLd?, ogImage?, noindex?, canonical?, scripts?, bodyClass?, fullTitle?, ads? }}
  * @param build {{ cssVersion, jsVersion, iconsVersion, scriptHashes, adPreview? }}
  */
 export function renderPage(page, build) {
@@ -180,7 +178,7 @@ export function renderPage(page, build) {
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(page.description)}">
-${page.noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${url}">`}
+${page.noindex ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${page.canonical ? SITE_URL + page.canonical : url}">`}
 <meta name="theme-color" content="#f7f5fc" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#110e1c" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">

@@ -12,7 +12,7 @@ import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
 import { logAnalyticsEvent } from '../lib/analytics.js';
 import { SITE_URL } from '../lib/site.js';
-import { statGrid, appCta, confetti, liveRegion, ownsKeys, ticker, gameBar, barButton, celebrate } from './kit.js';
+import { statGrid, confetti, liveRegion, ownsKeys, ticker, gameBar, barButton, celebrate } from './kit.js';
 
 const KEY = 'detective';
 const DAYS_KEPT = 14;
@@ -277,7 +277,6 @@ function mount(stage, meta, { dailyOnly = false } = {}) {
         dailyOnly ? null : h(`button.btn.${mode === 'daily' ? 'btn-secondary' : 'btn-primary'}`, { type: 'button', onclick: () => { setMode('practice'); focusBoard(); } }, icon('refresh'), h('span', {}, mode === 'daily' ? 'Practice a word' : 'New practice word')),
         h('a.btn.btn-ghost', { href: '/play/' }, icon('arrow_back'), h('span', {}, 'All games'))),
       shareNote,
-      appCta(`results_${meta.slug}`),
       h('p.results-note', {}, 'Stats and streaks are saved in this browser only and don’t sync with the Android app or other devices.'),
     );
     clear(panel).append(h('div.results', {}, parts));

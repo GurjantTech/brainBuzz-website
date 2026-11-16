@@ -3,7 +3,7 @@ import { h, icon, clear, formatNumber } from '../lib/dom.js';
 import * as M from '../engine/merge.js';
 import * as store from '../lib/store.js';
 import { logAnalyticsEvent } from '../lib/analytics.js';
-import { statGrid, appCta, confetti, liveRegion, ownsKeys, gameBar } from './kit.js';
+import { statGrid, confetti, liveRegion, ownsKeys, gameBar } from './kit.js';
 
 const KEY = 'merge';
 const BEST = ['MERGE', 'CLASSIC']; // bests[type][level], so game cards show it like other games
@@ -210,7 +210,6 @@ function mount(stage, meta) {
       h('div.btn-row', {},
         h('button.btn.btn-primary', { type: 'button', onclick: () => { mountAgain(); } }, icon('refresh'), h('span', {}, 'Play again')),
         h('a.btn.btn-ghost', { href: '/play/' }, icon('arrow_back'), h('span', {}, 'All games'))),
-      appCta(`results_${meta.slug}`),
       h('p.results-note', {}, 'Your best score is saved in this browser only. 2048 Merge Challenge is a website game and isn’t in the Android app.')));
     heading.focus({ preventScroll: true });
   }

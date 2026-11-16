@@ -10,7 +10,7 @@ import { MAX_LEVEL, levelOf, levelKey, sudokuStars } from '../engine/levels.js';
 import { todayEpochDay } from '../engine/quiz.js';
 import * as store from '../lib/store.js';
 import { logAnalyticsEvent } from '../lib/analytics.js';
-import { statGrid, appCta, confetti, liveRegion, ownsKeys, WEB_LEVEL_LIMIT, appOnlyLevelDialog, gameBar, barButton, celebrate } from './kit.js';
+import { statGrid, confetti, liveRegion, ownsKeys, gameBar, barButton, celebrate } from './kit.js';
 import { levelHeader, levelPicker, levelDetail, startButton, levelNote, starRow } from './levels-ui.js';
 
 const KEY = 'sudoku';
@@ -76,13 +76,6 @@ function mount(stage, meta) {
   const show = (...nodes) => { stopTimer(); clear(view).append(...nodes.filter(Boolean)); };
   const levelLabel = (g) => (g.mode === 'level' ? `Level ${g.level}` : g.mode === 'daily' ? 'Daily puzzle' : difficultyOf(g.level).label);
   const modeLabel = (g, today) => (g.mode === 'level' ? 'level puzzle' : g.mode === 'daily' ? (g.day === today ? 'today’s puzzle' : 'an earlier daily puzzle') : 'random puzzle');
-  /** Levels above the website limit are app-only: back to the level list with the app dialog on top. */
-  const appOnly = (lv) => {
-    if (lv <= WEB_LEVEL_LIMIT) return false;
-    setupView();
-    appOnlyLevelDialog(stage, lv, 'sudoku_level_limit');
-    return true;
-  };
   const dateLabel = () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
   // ---------- Setup ----------
@@ -117,7 +110,7 @@ function mount(stage, meta) {
       cont ? h('div.sd-continue', {},
         h('div', {}, h('strong', {}, 'Continue your puzzle'),
           h('span.muted', {}, ` ${levelLabel(cont)} · ${modeLabel(cont, today)} · ${formatDuration(cont.elapsed)}`)),
-        h('button.btn.btn-primary', { type: 'button', onclick: () => { if (!(cont.mode === 'level' && appOnly(cont.level))) play(cont); } }, icon('play_arrow'), h('span', {}, 'Continue'))) : null,
+        h('button.btn.btn-primary', { type: 'button', onclick: () => play(cont) }, icon('play_arrow'), h('span', {}, 'Continue'))) : null,
       h('div.lv-setup', {},
         levelHeader({ unlocked, stars, type: TYPE, title: meta.title }),
         picker,
@@ -131,7 +124,6 @@ function mount(stage, meta) {
   }
 
   function newGame(mode) {
-    if (mode === 'level' && appOnly(level)) return;
     let made;
     try {
       made = mode === 'level' ? S.generate(level, S.levelSeed(level)) : S.generate(DAILY_TIER, S.dailySeed(todayEpochDay(), DAILY_TIER));
@@ -433,7 +425,6 @@ function mount(stage, meta) {
         next ? h('button.btn.btn-primary.next-level', { type: 'button', onclick: () => { level = next; newGame('level'); } }, icon('skip_next'), h('span', {}, `Next: Level ${next}`)) : null,
         h(`button.btn.${next ? 'btn-secondary' : 'btn-primary'}`, { type: 'button', onclick: () => setupView() }, icon('trending_up'), h('span', {}, 'All levels')),
         h('a.btn.btn-ghost', { href: '/play/' }, icon('arrow_back'), h('span', {}, 'All games'))),
-      appCta(`results_${meta.slug}`),
       h('p.results-note', {}, 'Times and progress are saved in this browser only. Sudoku Daily is a website game and isn’t in the Android app.')));
     heading.focus({ preventScroll: true });
     announce(`Solved in ${formatDuration(ms)} with ${g.mistakes} mistakes and ${g.hints} hints.`);

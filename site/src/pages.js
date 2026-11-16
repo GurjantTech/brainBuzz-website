@@ -1,11 +1,11 @@
 /** Every page on the site. The build renders each one through layout.js. */
-import { esc, icon, playBadge, playButton, adSlot, AD_SLOTS } from './layout.js';
+import { esc, icon, playBadge, adSlot, AD_SLOTS } from './layout.js';
 import { GAME_COPY } from './content.js';
+import { publishedGuides, formatDate, readingMinutes } from './guides.js';
 import { brainMascot, trophy, gameIcon, goldStar, sparkleSvg, featureIcon, lightBulb, numberBlock } from '../assets/js/lib/art.js';
 import { ALL_GAMES, LIBRARY, Category, SAMPLE_LEVELS, ruleText } from '../assets/js/engine/models.js';
 import {
-  SITE_URL, SITE_NAME, APP_NAME, PLAY_URL, PLAY_DEV_URL, APP_PRIVACY_URL, CONTACT_EMAIL, playUrl, DISCLAIMER, MORE_APPS, appUrl,
-  PLAY_LOGO,
+  SITE_URL, SITE_NAME, APP_NAME, PLAY_URL, PLAY_DEV_URL, APP_PRIVACY_URL, CONTACT_EMAIL, playUrl, DISCLAIMER, PLAY_LOGO,
 } from '../assets/js/lib/site.js';
 
 const CATEGORY_ICON = { MEMORY: 'psychology', LOGIC: 'extension', NUMBERS: 'calculate', VISUAL: 'visibility', WORDS: 'abc' };
@@ -116,7 +116,7 @@ function hubDaily() {
 </div>`;
 }
 
-function homePage() {
+function homePage(guides = []) {
   const strip = [
     ['trophy', 'Build Your Streak', 'Play daily and keep it going'],
     ['chart', 'Earn Stars and Levels', 'Get better with every game'],
@@ -133,7 +133,7 @@ function homePage() {
       <p class="home-lead">Quick brain games, memory challenges, logic puzzles and maths games, free to play, right in your browser. Pick a game, choose your level and try to beat your best.</p>
       <div class="home-actions">
         <a class="home-btn primary" href="/play/">${icon('play_arrow')}<span>Play Games Now</span>${icon('arrow_forward', 'arrow')}</a>
-        ${playButton('hero', 'Get BrainBuzz on Google Play', 'home-btn light')}
+        <a class="home-btn light" href="/play/daily-challenge/">${icon('calendar_month')}<span>Today’s Daily Challenge</span></a>
       </div>
       <ul class="home-checks">
         <li><span class="ok green">${icon('check')}</span>Free to play</li>
@@ -173,17 +173,12 @@ function homePage() {
   </div>
 </div></section>
 
-<section class="home-apps" id="apps"><div class="wrap-wide">
-  <div class="section-head reveal"><p class="kicker">More from our team</p><h2>Explore Our Apps</h2>
-    <p>Simple, helpful apps for your phone, all free on Google Play.</p></div>
-  <div class="apps-grid">${MORE_APPS.map((a) => `<a class="app-card reveal" href="${esc(appUrl(a.id, 'home_more_apps'))}" rel="noopener" target="_blank" style="--c:${a.color}">
-    <img class="app-card-icon" src="/assets/img/apps/${a.icon}.webp" width="192" height="192" alt="" loading="lazy" decoding="async">
-    <span class="app-card-text"><span class="app-card-tag">${a.tag}</span><h3>${esc(a.name)}</h3><p>${esc(a.text)}</p></span>
-    <span class="app-card-cta">${PLAY_LOGO}Get it on Google Play${icon('arrow_forward', 'arrow')}</span>
-  </a>`).join('')}</div>
-  <div class="apps-more reveal"><a class="home-btn light" href="${PLAY_DEV_URL}" rel="noopener" target="_blank">${icon('apps')}<span>See all our apps on Google Play</span>${icon('arrow_forward', 'arrow')}</a></div>
-</div></section>
-
+${guides.length ? `<section class="section-tight" id="guides"><div class="wrap">
+  <div class="section-head reveal"><p class="kicker">Guides</p><h2>Get better at every game</h2>
+    <p>Strategy guides with worked examples, tested on the games themselves.</p></div>
+  <div class="guide-grid">${guides.slice(0, 3).map((gd) => guideCard(gd)).join('')}</div>
+  <div class="guide-more reveal"><a class="btn btn-secondary" href="/guides/">${icon('lightbulb')}<span>All guides</span>${icon('arrow_forward')}</a></div>
+</div></section>` : ''}
 ${adSlot(AD_SLOTS.home)}
 ${faqSection()}
 ${ctaBand('home_cta')}`;
@@ -284,7 +279,7 @@ ${ctaBand('play_hub_cta')}`;
   };
 }
 
-function gamePage(g) {
+function gamePage(g, guides = []) {
   const copy = GAME_COPY[g.type];
   const others = LIBRARY.filter((o) => o.type !== g.type).slice(0, 3);
   const ruleList = g.type === 'DAILY' || g.levels === false;
@@ -305,11 +300,7 @@ function gamePage(g) {
   <aside class="side-stack" aria-label="About this game">
     <div class="card"><h2>How to play</h2><ol>${g.howToPlay.map((s) => `<li>${s}</li>`).join('')}</ol></div>
     <div class="card"><h2>Scoring</h2><p class="muted" style="margin:0 0 8px">${copy.scoring}</p><p class="muted" style="margin:0">${copy.hint}</p></div>
-    <div class="app-mini">
-      <div class="row"><img class="logo" src="/assets/img/logo-192.webp" width="52" height="52" alt="" loading="lazy"><h2>${g.web ? 'More brain games on Android' : `Play ${g.title} on Android`}</h2></div>
-      <p>${g.web ? `${g.title} is a website game. The free BrainBuzz app has seven more brain games, with a growing score, daily streaks and achievements.` : 'Grow your score, build daily streaks and unlock achievements in the free BrainBuzz app.'}</p>
-      <div>${playBadge(`game_side_${g.slug}`)}</div>
-    </div>
+    ${guides.filter((gd) => gd.game === g.type || (g.type === 'DAILY' && gd.game === 'DETECTIVE') || (g.type === 'MEMORY' && gd.game === 'MATRIX')).map((gd) => `<a class="card guide-link" href="/guides/${gd.slug}/">${icon('lightbulb')}<span><strong>Strategy guide</strong>${esc(gd.title)}</span></a>`).join('')}
   </aside>
 </div></section>
 <section class="section-tight"><div class="wrap">
@@ -331,6 +322,8 @@ ${ctaBand(`game_cta_${g.slug}`)}`;
   return {
     path: `/play/${g.slug}/`,
     file: `play/${g.slug}/index.html`,
+    // The Daily Challenge is Word Detective's daily word, so its page points search engines at Word Detective.
+    ...(g.type === 'DAILY' ? { canonical: '/play/word-detective/', sitemap: false } : {}),
     title: copy.metaTitle,
     description: copy.description,
     body,
@@ -424,7 +417,7 @@ function privacyPage() {
   ${breadcrumbs([['Home', '/'], ['Privacy Policy']])}
   <h1>Privacy Policy</h1>
   <p class="lead">The short version: we don’t ask for your personal information, and your game scores stay in your browser. This website may show ads from Google AdSense, and uses Google Analytics for Firebase to count visits, so Google may collect information to serve and measure ads and to give us usage statistics, as explained below.</p>
-  <p class="muted">Last updated: 4 November 2026</p>
+  <p class="muted">Last updated: 16 November 2026</p>
 </div></section>
 <section class="section-tight" style="padding-top:0"><div class="wrap prose">
   <p>This policy covers the website at <strong>brainbuzzgame.com</strong>. The BrainBuzz Android app has its own privacy policy, which you can read on <a href="${APP_PRIVACY_URL}" rel="noopener" target="_blank">the BrainBuzz app privacy policy page</a>. It is also linked from the app’s Google Play listing.</p>
@@ -445,7 +438,7 @@ function privacyPage() {
   <p>This data doesn’t sync with the BrainBuzz Android app or with other browsers and devices, and it isn’t shared with advertisers.</p>
 
   <h2>Analytics (Google Analytics for Firebase)</h2>
-  <p>We use <strong>Google Analytics for Firebase</strong>, a service of Google, to understand how the website is used. It sets cookies and records things like the pages you view, how long you stay, when you start or finish a game (with the game, level and result), when you reach the last level playable on the website, your browser and device type, and your approximate location (country or city). We see these only as totals, such as visitors per day or the most-played games, and we use them to improve the website and the games. We never send your name, email address or game progress.</p>
+  <p>We use <strong>Google Analytics for Firebase</strong>, a service of Google, to understand how the website is used. It sets cookies and records things like the pages you view, how long you stay, when you start or finish a game (with the game, level and result), your browser and device type, and your approximate location (country or city). We see these only as totals, such as visitors per day or the most-played games, and we use them to improve the website and the games. We never send your name, email address or game progress.</p>
   <p>You can learn how Google uses this data at <a href="https://policies.google.com/technologies/partner-sites" rel="noopener" target="_blank">How Google uses information from sites or apps that use its services</a>, and opt out of Google Analytics with the <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener" target="_blank">Google Analytics opt-out browser add-on</a>.</p>
 
   <h2>Advertising (Google AdSense)</h2>
@@ -572,6 +565,100 @@ function notFoundPage() {
   };
 }
 
-export function allPages() {
-  return [homePage(), playHub(), ...ALL_GAMES.map(gamePage), aboutPage(), privacyPage(), contactPage(), notFoundPage()];
+/** A guide in a list: title, summary, the game it covers and the date. */
+function guideCard(gd, headingTag = 'h3') {
+  const g = ALL_GAMES.find((x) => x.type === gd.game);
+  return `<a class="guide-card reveal" href="/guides/${gd.slug}/" style="--c:${g.color}">
+  <span class="guide-card-meta">${gameArt(g)}<span>${g.title} guide</span></span>
+  <${headingTag}>${esc(gd.title)}</${headingTag}>
+  <p>${esc(gd.summary)}</p>
+  <span class="guide-card-foot"><time datetime="${gd.published}">${formatDate(gd.published)}</time> · ${readingMinutes(gd.body)} min read</span>
+</a>`;
+}
+
+function guidesIndex(guides) {
+  const body = `
+<section class="page-hero"><div class="wrap">
+  ${breadcrumbs([['Home', '/'], ['Guides']])}
+  <h1>Brain game guides</h1>
+  <p class="lead">Strategy guides for every BrainBuzz game, written by the people who built them. Where we can, we test our advice with the games’ own engines, so the numbers in these guides come from real puzzles.</p>
+</div></section>
+<section class="section-tight" style="padding-top:0"><div class="wrap">
+  <div class="guide-grid">${guides.map((gd) => guideCard(gd, 'h2')).join('')}</div>
+  <p class="muted" style="margin-top:24px">New guides are added regularly. Have a question about a game you’d like us to answer? <a href="/contact/">Let us know</a>.</p>
+</div></section>`;
+  return {
+    path: '/guides/',
+    file: 'guides/index.html',
+    title: 'Brain Game Guides: Strategy for Sudoku, 2048 & More',
+    description: 'Strategy guides for Word Detective, Sudoku, 2048, number sequences, mental maths and memory games, tested with the games’ own engines.',
+    body,
+    lastmod: guides.length ? guides.map((gd) => gd.updated || gd.published).sort().pop() : undefined,
+    jsonLd: [
+      breadcrumbLd([['Home', '/'], ['Guides', '/guides/']]),
+      {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        itemListElement: guides.map((gd, i) => ({ '@type': 'ListItem', position: i + 1, name: gd.title, url: `${SITE_URL}/guides/${gd.slug}/` })),
+      },
+    ],
+    priority: '0.8',
+  };
+}
+
+function guidePage(gd, guides) {
+  const g = ALL_GAMES.find((x) => x.type === gd.game);
+  const others = guides.filter((o) => o.slug !== gd.slug).slice(0, 3);
+  const updated = gd.updated && gd.updated !== gd.published ? ` · Updated <time datetime="${gd.updated}">${formatDate(gd.updated)}</time>` : '';
+  const body = `
+<section class="page-hero" style="padding-bottom:12px"><div class="wrap">
+  ${breadcrumbs([['Home', '/'], ['Guides', '/guides/'], [g.title]])}
+  <h1 class="guide-title">${esc(gd.title)}</h1>
+  <p class="guide-byline">By the BrainBuzz team · <time datetime="${gd.published}">${formatDate(gd.published)}</time>${updated} · ${readingMinutes(gd.body)} min read</p>
+</div></section>
+<section class="section-tight" style="padding-top:0"><div class="wrap">
+  <article class="prose guide-body">${gd.body}
+    <div class="guide-play" style="--c:${g.color}">${gameArt(g)}<div><strong>Try it now</strong><span>Play ${g.title} free in your browser, no sign-up needed.</span></div>
+      <a class="btn btn-primary" href="/play/${g.slug}/">${icon('play_arrow')}<span>Play ${g.title}</span></a></div>
+  </article>
+</div></section>
+${adSlot(AD_SLOTS.game)}
+${others.length ? `<section class="section-tight"><div class="wrap">
+  <div class="section-head reveal" style="margin-bottom:24px"><h2>More guides</h2></div>
+  <div class="guide-grid">${others.map((o) => guideCard(o)).join('')}</div>
+</div></section>` : ''}`;
+  return {
+    path: `/guides/${gd.slug}/`,
+    file: `guides/${gd.slug}/index.html`,
+    title: gd.metaTitle,
+    description: gd.description,
+    ogTitle: gd.title,
+    body,
+    lastmod: gd.updated || gd.published,
+    jsonLd: [
+      breadcrumbLd([['Home', '/'], ['Guides', '/guides/'], [g.title, `/guides/${gd.slug}/`]]),
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: gd.title,
+        description: gd.description,
+        datePublished: gd.published,
+        dateModified: gd.updated || gd.published,
+        author: { '@type': 'Organization', name: SITE_NAME, url: `${SITE_URL}/about/` },
+        publisher: { '@type': 'Organization', name: SITE_NAME, logo: { '@type': 'ImageObject', url: `${SITE_URL}/assets/img/icon-512.png` } },
+        mainEntityOfPage: `${SITE_URL}/guides/${gd.slug}/`,
+        image: `${SITE_URL}/assets/img/og-image.jpg`,
+      },
+    ],
+    priority: '0.7',
+  };
+}
+
+/** Every page live on [date] (YYYY-MM-DD, the build date): guides dated later are left out until their day. */
+export function allPages(date = new Date().toISOString().slice(0, 10)) {
+  const guides = publishedGuides(date);
+  return [
+    homePage(guides), playHub(), ...ALL_GAMES.map((g) => gamePage(g, guides)), aboutPage(), privacyPage(), contactPage(), notFoundPage(),
+    ...(guides.length ? [guidesIndex(guides), ...guides.map((gd) => guidePage(gd, guides))] : []),
+  ];
 }

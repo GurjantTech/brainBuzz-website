@@ -90,7 +90,7 @@ async function results(page, timeout = 120000) {
     score: Number(document.querySelector('.results .big-score').firstChild.textContent.replace(/,/g, '')),
     stats: Array.from(document.querySelectorAll('.stat')).map((s) => `${s.querySelector('span').textContent}=${s.querySelector('strong').textContent}`),
     best: document.querySelector('.results .pill').textContent,
-    cta: document.querySelector('.app-cta a').href,
+    playLinks: document.querySelectorAll('.results [data-play]').length,
   }));
 }
 
@@ -461,7 +461,7 @@ async function suiteGames(browser) {
       console.log(`    ${r.title} ${r.score} pts · ${r.stats.join(' · ')} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
       check('reaches results with a score', r.score >= 0 && r.title.length > 0);
       check('first score is recorded as a best', /First points|New personal best/.test(r.best), `(${r.best})`);
-      check('results CTA links to the Play listing', r.cta.startsWith(PLAY_URL) && r.cta.includes(`results_${plan.slug}`));
+      check('results screen has no app promotion', r.playLinks === 0);
       const perfect = { MEMORY: d !== 'MEDIUM', LOGIC_PATH: true, WORD_SCRAMBLE: d === 'MEDIUM' || d === 'HARD' };
       if (perfect[type] || (type === 'MATRIX' && d === 'EASY') || (type === 'SEQUENCE' && d === 'EASY') || (type === 'ODD_ONE_OUT' && d === 'MEDIUM')) {
         check('perfect play is Flawless', r.title === 'Flawless!', `(${r.title})`);
@@ -543,7 +543,7 @@ async function suiteDaily(browser) {
 
 async function suiteSite(browser) {
   console.log('\nSITE');
-  const paths = ['/', '/play/', '/about/', '/privacy/', '/contact/', '/play/daily-challenge/', '/play/memory-matrix/', '/play/memory-match/',
+  const paths = ['/', '/play/', '/about/', '/privacy/', '/contact/', '/guides/', '/guides/sudoku-for-beginners/', '/guides/best-starting-words-word-detective/', '/play/daily-challenge/', '/play/memory-matrix/', '/play/memory-match/',
     '/play/logic-path/', '/play/odd-one-out/', '/play/word-scramble/', '/play/number-sequence/', '/play/quick-math/',
     '/play/2048/', '/play/word-detective/', '/play/sudoku/'];
   for (const width of [390, 820, 1280]) {
@@ -580,13 +580,13 @@ async function suiteSite(browser) {
       check(`${tag} loads`, res.status() === 200);
       check(`${tag} no horizontal scroll`, info.overflow <= 0, `(${info.overflow}px)`);
       if (width === 390) {
-        check(`${tag} one h1, title, description, canonical`, info.h1 === 1 && info.title.length > 10 && info.desc.length > 50 && info.canonical === `https://brainbuzzgame.com${p}`, JSON.stringify({ h1: info.h1, c: info.canonical }));
+        check(`${tag} one h1, title, description, canonical`, info.h1 === 1 && info.title.length > 10 && info.desc.length > 50 && info.canonical === `https://brainbuzzgame.com${p === '/play/daily-challenge/' ? '/play/word-detective/' : p}`, JSON.stringify({ h1: info.h1, c: info.canonical }));
         check(`${tag} title/description lengths are search-friendly`, info.title.length <= 65 && info.desc.length <= 165, `(${info.title.length}/${info.desc.length})`);
         check(`${tag} images load and have alt`, info.brokenImgs.length === 0 && info.noAlt === 0, JSON.stringify(info.brokenImgs));
         check(`${tag} Play links are the official listing`, info.play.length >= 2 && info.play.every((u) => u.startsWith(`${PLAY_URL}&referrer=`)), `(${info.play.length})`);
         check(`${tag} structured data parses`, info.ld);
         check(`${tag} every button and link has a name`, info.unnamedButtons === 0, `(${info.unnamedButtons})`);
-        const slot = p === '/' ? [`${AD_CLIENT}/1993165487`] : /^\/play\/.+\//.test(p) ? [`${AD_CLIENT}/1076678798`] : [];
+        const slot = p === '/' ? [`${AD_CLIENT}/1993165487`] : /^\/(play|guides)\/.+\//.test(p) ? [`${AD_CLIENT}/1076678798`] : [];
         check(`${tag} icons use the versioned sprite and all draw`, /\?v=[0-9a-f]{10}$/.test(info.icons) && info.badIcons.length === 0, `(${info.icons} ${info.badIcons})`);
         check(`${tag} AdSense loads once with the right ad unit`, info.adScripts === 1 && info.adSlots.join() === slot.join(), `(${info.adScripts} ${info.adSlots})`);
       }
@@ -613,7 +613,7 @@ async function suiteSite(browser) {
 
   await page.goto(`${BASE}/play/`, { waitUntil: 'networkidle0' });
   await page.click('[data-filter="MEMORY"]');
-  const visible = await page.$$eval('[data-game-grid] .game-card', (c) => c.filter((x) => !x.hidden).map((x) => x.dataset.gameCard));
+  const visible = await page.$$eval('[data-game-grid] .hub-card', (c) => c.filter((x) => !x.hidden).map((x) => x.dataset.gameCard));
   check('category filter shows only Memory games', visible.join() === 'MATRIX,MEMORY', `(${visible})`);
 
   // Storage blocked (e.g. strict privacy mode): games must still work.
