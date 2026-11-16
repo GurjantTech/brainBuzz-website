@@ -4,7 +4,7 @@
  * The site has no bundler, so the Firebase modular SDK is loaded from Google's CDN with dynamic import():
  * nothing is downloaded until initAnalytics() runs, and a blocked or failed load never affects the page.
  * Analytics logs page views, sessions and users on its own; logAnalyticsEvent() adds the site's game events
- * (web_game_start, web_game_complete, web_level_limit). The web_ prefix keeps them apart from the Android
+ * (web_game_start, web_game_complete). The web_ prefix keeps them apart from the Android
  * app's game_start / game_complete, which share this Firebase project.
  *
  * It runs only on the live site, so local builds, previews and tests never send data. The page's CSP

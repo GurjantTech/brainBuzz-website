@@ -2,7 +2,7 @@
  * Builds the static site into dist/. No dependencies; runs on Node 12.20+.
  *   node tools/build.js
  *   node tools/build.js --ad-preview   local only: dashed "not an advertisement" boxes instead of AdSense
- * Renders every page in src/pages.js, copies assets and app-ads.txt, builds the icon sprite, sitemap,
+ * Renders every page in src/pages.js (guides dated after the build date are left out), copies assets and app-ads.txt, builds the icon sprite, sitemap,
  * robots, manifest and CNAME, then checks that every internal link and asset reference resolves.
  */
 import fs from 'fs';
@@ -121,14 +121,17 @@ function main() {
     adPreview: AD_PREVIEW,
   };
 
-  const pages = allPages();
+  // BUILD_DATE=YYYY-MM-DD previews the site as it will be on that day (guides are published by date).
+  const buildDate = process.env.BUILD_DATE || new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(buildDate)) { console.error(`Bad BUILD_DATE ${buildDate}`); process.exit(1); }
+  const pages = allPages(buildDate);
   for (const page of pages) write(page.file, renderPage(page, build));
 
-  const today = new Date().toISOString().slice(0, 10);
+  // <lastmod> only where we know when the content really changed (the guides), never the build date.
   const urls = pages.filter((p) => p.sitemap !== false && !p.noindex);
   write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((p) => `  <url><loc>${SITE_URL}${p.path}</loc><lastmod>${today}</lastmod><priority>${p.priority || '0.5'}</priority></url>`).join('\n')}
+${urls.map((p) => `  <url><loc>${SITE_URL}${p.path}</loc>${p.lastmod ? `<lastmod>${p.lastmod}</lastmod>` : ''}<priority>${p.priority || '0.5'}</priority></url>`).join('\n')}
 </urlset>
 `);
   write('robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);

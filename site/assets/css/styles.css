@@ -213,7 +213,7 @@ p { margin: 0 0 1em; }
 .btn-sm { min-height: 40px; padding: 0.5em 1em; font-size: 0.92rem; }
 .btn-block { width: 100%; }
 .btn .icon { width: 1.3em; height: 1.3em; }
-.btn .play-logo, .app-card-cta .play-logo { flex: none; width: 1.1em; height: 1.2em; }
+.btn .play-logo { flex: none; width: 1.1em; height: 1.2em; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .play-badge { display: inline-block; border-radius: 10px; transition: transform 0.18s var(--ease); }
@@ -422,11 +422,7 @@ main { display: block; }
 .side-stack h2 { font-size: 1.15rem; margin-bottom: 10px; }
 .side-stack ol, .side-stack ul { margin: 0; padding-left: 1.2em; color: var(--ink-2); }
 .side-stack li { margin-bottom: 6px; }
-.app-mini { display: grid; gap: 12px; padding: 20px; border-radius: var(--radius-lg); color: #fff; background: var(--arcade-gradient); }
-.app-mini h2 { color: #fff; font-size: 1.15rem; margin: 0; }
-.app-mini p { margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; }
-.app-mini .row { display: flex; gap: 12px; align-items: center; }
-.app-mini img.logo { width: 52px; height: 52px; border-radius: 15px; }
+
 
 .stage:focus { outline: none; }
 .stage {
@@ -602,14 +598,6 @@ main { display: block; }
 :root[data-theme='dark'] .pattern i { color: #111; }
 .results .btn-row { justify-content: center; }
 .results-note { font-size: 0.85rem; color: var(--ink-2); max-width: 460px; margin: 0; }
-.app-cta {
-  width: 100%; max-width: 640px; display: grid; gap: 16px; align-items: center; text-align: left;
-  padding: 20px; border-radius: var(--radius-lg); background: var(--arcade-gradient); color: #fff; box-shadow: var(--shadow-glow);
-}
-.app-cta h3 { color: #fff; margin: 0 0 4px; font-size: 1.2rem; }
-.app-cta p { margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 0.95rem; }
-.app-cta img.logo { width: 60px; height: 60px; border-radius: 17px; }
-@media (min-width: 620px) { .app-cta { grid-template-columns: auto 1fr auto; } }
 .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
 .confetti i { position: absolute; top: -12px; width: 9px; height: 14px; border-radius: 3px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translate3d(var(--dx), 620px, 0) rotate(var(--r)); opacity: 0.2; } }
@@ -1173,35 +1161,6 @@ body.home main > :last-child { margin-bottom: var(--home-gap); }
 
 :root[data-theme='dark'] .home-hero h1 { color: #f1eeff; }
 
-/* Home: Explore Our Apps */
-.home-apps .section-head { margin-bottom: 24px; }
-.home-apps .section-head h2 { margin: 0 0 6px; font-size: clamp(1.6rem, 2.4vw, 2rem); }
-.home-apps .section-head p { margin: 0; font-size: 0.95rem; }
-.home-apps .kicker { margin-bottom: 4px; font-size: 0.78rem; letter-spacing: 0.24em; }
-.apps-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
-.app-card {
-  --c: var(--purple);
-  display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 22px; color: var(--ink); text-decoration: none;
-  background: linear-gradient(160deg, var(--surface) 55%, color-mix(in srgb, var(--c) 8%, var(--surface)));
-  border: 1px solid var(--outline-soft); box-shadow: 0 8px 22px -18px rgba(76, 47, 209, 0.55);
-  transition: transform 0.2s var(--ease), box-shadow 0.2s, border-color 0.2s;
-}
-.app-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--c) 35%, transparent); box-shadow: 0 18px 32px -18px color-mix(in srgb, var(--c) 70%, transparent); }
-.app-card:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
-.app-card-icon { width: 72px; height: 72px; border-radius: 18px; box-shadow: 0 10px 18px -10px color-mix(in srgb, var(--c) 60%, transparent); }
-.app-card-text { display: grid; gap: 4px; }
-.app-card-tag { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, var(--ink)); }
-.app-card h3 { margin: 0; font-family: var(--font-body); font-weight: 800; font-size: 1.05rem; line-height: 1.25; }
-.app-card p { margin: 0; font-size: 0.9rem; line-height: 1.45; color: var(--ink-2); }
-.app-card-cta {
-  margin-top: auto; display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 8px 14px; border-radius: 999px;
-  font-weight: 700; font-size: 0.88rem; color: color-mix(in srgb, var(--c) 60%, var(--ink)); background: color-mix(in srgb, var(--c) 12%, var(--surface));
-}
-.app-card-cta .icon { width: 18px; height: 18px; }
-.app-card-cta .arrow { width: 16px; height: 16px; transition: transform 0.2s var(--ease); }
-.app-card:hover .app-card-cta .arrow { transform: translateX(3px); }
-.apps-more { display: flex; justify-content: center; margin-top: 22px; }
-
 /* ==========================================================================
    Energetic games (the app's GameStage): a stage washed in the game's colour (--c) with drifting light
    bubbles, a bold gradient header bar, a frosted status panel, glowing boards, chunky buttons that sink
@@ -1469,3 +1428,63 @@ body.home main > :last-child { margin-bottom: var(--home-gap); }
   .celebrate .cb-pill { animation: cb-fade 0.7s ease-out forwards; }
 }
 @keyframes cb-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ==========================================================================
+   Guides: /guides/ list, article pages and the figures inside them
+   ========================================================================== */
+.guide-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+.guide-card {
+  display: flex; flex-direction: column; gap: 10px; padding: 22px; color: var(--ink); text-decoration: none;
+  background: var(--surface); border: 1px solid var(--outline-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  transition: transform 0.2s var(--ease), border-color 0.2s;
+}
+.guide-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--c) 40%, transparent); }
+.guide-card:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.guide-card h2, .guide-card h3 { margin: 0; font-size: 1.15rem; line-height: 1.3; }
+.guide-card p { margin: 0; color: var(--ink-2); font-size: 0.95rem; }
+.guide-card-meta { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 65%, var(--ink)); }
+.guide-card-meta .game-art { width: 34px; height: 34px; border-radius: 10px; }
+.guide-card-foot { margin-top: auto; font-size: 0.85rem; color: var(--ink-2); }
+.guide-more { display: flex; justify-content: center; margin-top: 22px; }
+.guide-title { font-size: clamp(1.8rem, 4vw, 2.6rem); max-width: 22em; }
+.guide-byline { color: var(--ink-2); font-size: 0.95rem; margin: 0; }
+.guide-body { font-size: 1.04rem; line-height: 1.7; }
+.guide-body h3 { font-size: 1.12rem; }
+.guide-play {
+  display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; margin-top: 36px; padding: 20px;
+  border-radius: var(--radius-lg); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+  background: color-mix(in srgb, var(--c) 8%, var(--surface));
+}
+.guide-play div { display: grid; gap: 2px; }
+.guide-play div span { color: var(--ink-2); font-size: 0.95rem; }
+.guide-play .btn { grid-column: 1 / -1; justify-self: start; }
+@media (min-width: 620px) { .guide-play { grid-template-columns: auto 1fr auto; } .guide-play .btn { grid-column: auto; } }
+.guide-link { display: flex; gap: 12px; align-items: flex-start; color: var(--ink); text-decoration: none; }
+.guide-link .icon { flex: none; width: 24px; height: 24px; color: var(--primary); }
+.guide-link span { display: grid; gap: 2px; font-size: 0.95rem; }
+.guide-link strong { font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--primary); }
+.guide-link:hover { border-color: var(--primary); }
+.gx-tip { padding: 14px 18px; border-left: 4px solid var(--amber); border-radius: 0 12px 12px 0; background: var(--surface-variant); }
+.gx-table { overflow-x: auto; margin: 0 0 1.2em; border: 1px solid var(--outline-soft); border-radius: 14px; background: var(--surface); }
+.gx-table .compare th, .gx-table .compare td { padding: 10px 14px; }
+.gx-tiles { display: inline-flex; gap: 4px; vertical-align: middle; margin-right: 6px; }
+.gx-tiles span {
+  display: grid; place-items: center; width: 2em; height: 2em; border-radius: 6px; font-family: var(--font-display);
+  font-weight: 700; font-size: 1rem; color: #fff; position: relative;
+}
+.gx-tiles .g { background: #0b7f75; }
+.gx-tiles .y { background: #ffb23f; color: #1c1830; }
+.gx-tiles .x { background: #77728f; }
+.gx-tiles .g::after, .gx-tiles .y::after { position: absolute; top: 1px; right: 3px; font-size: 0.55rem; font-family: var(--font-body); }
+.gx-tiles .g::after { content: '✓'; }
+.gx-tiles .y::after { content: '●'; font-size: 0.45rem; top: 3px; }
+.gx-figure { margin: 0 0 1.4em; }
+.gx-figure figcaption { margin-top: 8px; font-size: 0.9rem; color: var(--ink-2); }
+.gx-sudoku { border-collapse: collapse; border: 2px solid var(--ink); background: var(--surface); font-family: var(--font-display); }
+.gx-sudoku td {
+  width: clamp(28px, 8.5vw, 40px); height: clamp(28px, 8.5vw, 40px); padding: 0; text-align: center; vertical-align: middle;
+  border: 1px solid var(--outline); font-size: clamp(0.95rem, 3.5vw, 1.15rem); font-weight: 600; color: var(--ink);
+}
+.gx-sudoku tr:nth-child(3n) td { border-bottom: 2px solid var(--ink); }
+.gx-sudoku td:nth-child(3n) { border-right: 2px solid var(--ink); }
+.gx-sudoku td.mark { background: var(--teal-container); color: var(--teal-deep, var(--teal)); font-weight: 800; }
